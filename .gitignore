@@ -58,3 +58,8 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# My vscode configurations
+.vscode
+
+# Screenshots created by get_screenshots.py
+screenshots
