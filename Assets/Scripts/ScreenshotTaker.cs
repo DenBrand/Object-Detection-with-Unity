@@ -8,9 +8,18 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private Camera camera = null;
     private GameObject[] detectables;
 
+    private string path;
+
     // Start is called before the first frame update
     void Start()
     {
+        Debug.Log("STARTING CAPTURING SESSION");
+
+        if(SystemInfo.operatingSystem.StartsWith("Windows"))
+            path = "screenshots\\";
+        else
+            path = "screenshots/";
+
         detectables = GameObject.FindGameObjectsWithTag("Detectable");
     }
 
@@ -20,11 +29,20 @@ public class ScreenshotTaker: MonoBehaviour {
         
         if(Input.GetKeyDown(KeyCode.E)) {
 
-            // Take screenshot and save raw version
+            Debug.Log("*SNAP*");
+
+            // get time stamp as file name
+            System.DateTime time = System.DateTime.Now;
+            string timestmp = time.Year + "-"
+                            + time.Month + "-"
+                            + time.Day + "_"
+                            + time.Hour + "h"
+                            + time.Minute + "min"
+                            + time.Second + "sec";
+
+            // take screenshot and save raw version
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
             byte[] screenshotAsPNG = screenshot.EncodeToPNG();
-
-            string path = "D:\\UnityProjects\\Object-Detection-with-Unity\\screenshots\\";
 
             if(!Directory.Exists(path)) {
 
@@ -32,7 +50,7 @@ public class ScreenshotTaker: MonoBehaviour {
 
             }
 
-            File.WriteAllBytes(path + "srn.png", screenshotAsPNG);
+            File.WriteAllBytes(path + timestmp + ".png", screenshotAsPNG);
 
             foreach(GameObject detectable in detectables) {
 
