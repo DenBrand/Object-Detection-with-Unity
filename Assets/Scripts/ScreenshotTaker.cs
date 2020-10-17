@@ -6,7 +6,8 @@ using System.IO;
 
 public class ScreenshotTaker: MonoBehaviour {
 
-    [SerializeField] private Camera camera = null;
+    [SerializeField] private Camera playerCamera = null;
+    [SerializeField] private Canvas UICanvas = null;
     private GameObject[] detectables;
     private string path;
     public int maxMessages = 30;
@@ -32,6 +33,13 @@ public class ScreenshotTaker: MonoBehaviour {
         
         if(Input.GetKeyDown(KeyCode.E)) {
 
+            // start coroutine so hide UI for the frame the screen is captured
+            StartCoroutine(CaptureObjects());
+
+        }
+
+        IEnumerator CaptureObjects() {
+
             sendMessage("*SNAP*");
 
             // get time stamp as file name
@@ -42,6 +50,14 @@ public class ScreenshotTaker: MonoBehaviour {
                             + time.Hour + "h"
                             + time.Minute + "min"
                             + time.Second + "sec";
+
+            // wait till the last possible moment before screen rendering to hide UI
+            yield return null;
+            UICanvas.enabled = false;
+
+            // wait for screen rendering to complete
+            yield return new WaitForEndOfFrame();
+            UICanvas.enabled = true;
 
             // take screenshot and save raw version
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
@@ -81,10 +97,10 @@ public class ScreenshotTaker: MonoBehaviour {
                     foreach(Vector3 vertex in vertices) {
 
                         // check if vertex is NOT BEHIND the camera
-                        if(Vector3.Dot(camera.transform.forward, vertex) >= 0f) {
+                        if(Vector3.Dot(playerCamera.transform.forward, vertex - playerCamera.transform.position) >= 0f) {
 
                             // check if corresponding screen point is on screen and if it is a newly found border point candidate
-                            Vector3 screenPoint = camera.WorldToScreenPoint(vertex);
+                            Vector3 screenPoint = playerCamera.WorldToScreenPoint(vertex);
                             if(new Rect(0, 0, Screen.width, Screen.height).Contains(screenPoint)) {
 
                                 if(screenPoint.x < left) left = screenPoint.x;
@@ -95,11 +111,6 @@ public class ScreenshotTaker: MonoBehaviour {
                             }
                         }
                     }
-
-                    Debug.Log("left: " + left);
-                    Debug.Log("right: " + right);
-                    Debug.Log("bottom: " + bottom);
-                    Debug.Log("top: " + top);
 
                     // draw the lines
                     for(int x = (int)left; x <= (int)right; x++) {
@@ -112,7 +123,7 @@ public class ScreenshotTaker: MonoBehaviour {
                     }
 
                     // gather corresponding data
-                    BoxData boxData = new BoxData(  detectable.GetInstanceID(),
+                    BoxData boxData = new BoxData(detectable.GetInstanceID(),
                                                     detectable.name,
                                                     (int)left,
                                                     (int)bottom,
