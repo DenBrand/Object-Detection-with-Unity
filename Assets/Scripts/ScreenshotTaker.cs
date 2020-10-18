@@ -17,6 +17,15 @@ public class ScreenshotTaker: MonoBehaviour {
     // Start is called before the first frame update
     void Start()
     {
+        // Set Cursor to not visible
+        Cursor.visible = false;
+
+        sendMessage("Move: WASD");
+        sendMessage("Look: Mouse");
+        sendMessage("Capture: E");
+        sendMessage("Close Application: ESC");
+        sendMessage("Wait at least one second between captures.");
+        sendMessage("Screenshots stored in \"screenshots/\".");
         sendMessage("STARTING CAPTURING SESSION");
 
         if(SystemInfo.operatingSystem.StartsWith("Windows"))
@@ -30,7 +39,9 @@ public class ScreenshotTaker: MonoBehaviour {
     // Update is called once per frame
     void Update()
     {
-        
+
+        if(Input.GetKeyDown(KeyCode.Escape)) Application.Quit();
+
         if(Input.GetKeyDown(KeyCode.E)) {
 
             // start coroutine so hide UI for the frame the screen is captured
