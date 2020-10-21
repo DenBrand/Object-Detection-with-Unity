@@ -10,7 +10,7 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private Canvas UICanvas = null;
     private GameObject[] detectables;
     private string path;
-    public int maxMessages = 30;
+    public int maxMessages;
     [SerializeField] List<Message> messageList = new List<Message>();
     public GameObject contentObject, textObject;
 

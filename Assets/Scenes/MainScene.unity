@@ -390,7 +390,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerCamera: {fileID: 68374348}
   UICanvas: {fileID: 1295764289}
-  maxMessages: 6
+  maxMessages: 10
   messageList: []
   contentObject: {fileID: 1075683652}
   textObject: {fileID: 6701630918165160064, guid: b427a1609bca8b943b114ff93086c5f0,
@@ -649,8 +649,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -250, y: -163.97}
-  m_SizeDelta: {x: 300, y: 121.88249}
+  m_AnchoredPosition: {x: -250, y: -153.91}
+  m_SizeDelta: {x: 300, y: 142.0002}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &530201561
 MonoBehaviour:
@@ -1004,7 +1004,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 121.88}
+  m_AnchoredPosition: {x: 0, y: 142}
   m_SizeDelta: {x: 300, y: 15.527519}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &886101058
