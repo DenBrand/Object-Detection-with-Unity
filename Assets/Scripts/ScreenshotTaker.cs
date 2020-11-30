@@ -72,13 +72,13 @@ public class ScreenshotTaker: MonoBehaviour {
 
             // take screenshot and save raw version
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
-            byte[] screenshotAsPNG = screenshot.EncodeToPNG();
+            byte[] screenshotAsJPG = screenshot.EncodeToJPG();
             if(!Directory.Exists(path)) {
 
                 Directory.CreateDirectory(path);
 
             }
-            File.WriteAllBytes(path + timestmp + ".png", screenshotAsPNG);
+            File.WriteAllBytes(path + timestmp + ".jpg", screenshotAsJPG);
 
             List<BoxData> boxDataList = new List<BoxData>();
 
@@ -114,10 +114,10 @@ public class ScreenshotTaker: MonoBehaviour {
                             Vector3 screenPoint = playerCamera.WorldToScreenPoint(vertex);
                             if(new Rect(0, 0, Screen.width, Screen.height).Contains(screenPoint)) {
 
-                                if(screenPoint.x < left) left = screenPoint.x;
-                                if(screenPoint.x > right) right = screenPoint.x;
-                                if(screenPoint.y < bottom) bottom = screenPoint.y;
-                                if(screenPoint.y > top) top = screenPoint.y;
+                                if(screenPoint.x < left)    left = screenPoint.x;
+                                if(screenPoint.x > right)   right = screenPoint.x;
+                                if(screenPoint.y < bottom)  bottom = screenPoint.y;
+                                if(screenPoint.y > top)     top = screenPoint.y;
 
                             }
                         }
@@ -134,25 +134,45 @@ public class ScreenshotTaker: MonoBehaviour {
                     }
 
                     // gather corresponding data
-                    BoxData boxData = new BoxData(detectable.GetInstanceID(),
-                                                    detectable.name,
-                                                    (int)left,
-                                                    (int)bottom,
-                                                    (int)right - (int)left,
-                                                    (int)top - (int)bottom);
+                    int id = -1;
+                    if(detectable.name.StartsWith("Cube")) id = 0;
+                    else if(detectable.name.StartsWith("Ball")) id = 1;
+                    else Debug.Log("Couldn't infer object class");
+
+                    int width = (int)right - (int)left;
+                    int height = (int)top - (int)bottom;
+                    int center_x = (int)left + width/2;
+                    int center_y = (int)bottom + height/2;
+
+                    BoxData boxData = new BoxData(  id,
+                                                    center_x,
+                                                    center_y,
+                                                    width,
+                                                    height);
                     boxDataList.Add(boxData);
 
                 }
             }
 
             // save labeled image
-            screenshotAsPNG = screenshot.EncodeToPNG();
-            File.WriteAllBytes(path + timestmp + "_labeled.png", screenshotAsPNG);
+            screenshotAsJPG = screenshot.EncodeToJPG();
+            File.WriteAllBytes(path + timestmp + "_labeled.jpg", screenshotAsJPG);
 
-            // save json data
+            /* // save json data
             string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
-            File.WriteAllText(path + timestmp + ".json", jsonString);
+            File.WriteAllText(path + timestmp + ".json", jsonString);*/
 
+            // save txt file
+            foreach(BoxData boxData in boxDataList) {
+
+                using (StreamWriter sw = File.AppendText(path + timestmp + ".txt")) {
+                    sw.WriteLine(   boxData.id + " " +
+                                    boxData.pos_x + " " +
+                                    boxData.pos_y + " " +
+                                    boxData.width + " " +
+                                    boxData.height);
+                }
+            }
         }
     }
 
@@ -166,15 +186,10 @@ public class ScreenshotTaker: MonoBehaviour {
         }
 
         Message newMessage = new Message();
-
         newMessage.text = text;
-
         GameObject newText = Instantiate(textObject, contentObject.transform);
-
         newMessage.textObject = newText.GetComponent<Text>();
-
         newMessage.textObject.text = newMessage.text;
-
         messageList.Add(newMessage);
 
     }
@@ -203,16 +218,15 @@ class BoxDataList {
 [System.Serializable]
 class BoxData {
 
-    public int obj_id;
-    public string obj_name;
+    public int id;
     public int pos_x;
     public int pos_y;
     public int width;
     public int height;
 
-    public BoxData(int objId, string objName, int posX, int posY, int width, int height) {
-        this.obj_id = objId;
-        this.obj_name = objName;
+    public BoxData(int objId, int posX, int posY, int width, int height) {
+        
+        this.id = objId;
         this.pos_x = posX;
         this.pos_y = posY;
         this.width = width;
