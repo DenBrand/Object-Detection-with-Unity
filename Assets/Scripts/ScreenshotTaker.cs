@@ -8,7 +8,11 @@ public class ScreenshotTaker: MonoBehaviour {
 
     [SerializeField] private Camera playerCamera = null;
     [SerializeField] private Canvas UICanvas = null;
-    private GameObject[] detectables;
+    [SerializeField] private List<GameObject> detectables;
+    [SerializeField] private int detecableCount = 0;
+    [SerializeField] private GameObject ballPrefab = null;
+    [SerializeField] private GameObject cubePrefab = null;
+    [SerializeField] private GameObject detectablesParent = null;
     private string path;
     public int maxMessages;
     [SerializeField] List<Message> messageList = new List<Message>();
@@ -33,7 +37,21 @@ public class ScreenshotTaker: MonoBehaviour {
         else
             path = "screenshots/";
 
-        detectables = GameObject.FindGameObjectsWithTag("Detectable");
+        // instatiate 30 detectables at random positions all over the map
+        for(int i = 0; i < detecableCount; i++) {
+
+            Vector3 randomPosition = new Vector3(Random.Range(-100f, 100f), 10f, Random.Range(-100f, 100f));
+
+            GameObject detectable = Instantiate(   i % 2 == 0 ? cubePrefab : ballPrefab,
+                                                    randomPosition,
+                                                    Quaternion.Euler(   Random.Range(0f, 180f),
+                                                                        Random.Range(0f, 180f),
+                                                                        Random.Range(0f, 180f)),
+                                                    detectablesParent.transform);
+            
+            detectables.Add(detectable);
+
+        }
     }
 
     // Update is called once per frame
@@ -96,8 +114,11 @@ public class ScreenshotTaker: MonoBehaviour {
                     Vector3[] vertices = mesh.vertices;
 
                     // since vertices are given relative to their gameobject, we need to convert them into worldSpace
-                    for(int i = 0; i < vertices.Length; i++)
+                    for(int i = 0; i < vertices.Length; i++) {
+
                         vertices[i] = detectable.transform.TransformPoint(vertices[i]);
+
+                    }
 
                     float left = Screen.width + 1f;
                     float right = -1f;
@@ -105,6 +126,7 @@ public class ScreenshotTaker: MonoBehaviour {
                     float bottom = Screen.height + 1f;
 
                     // with camera.WorldToScreenPoint(Vector3 worldPoint) search for the top, bottom, most left and most right point
+                    bool objectInSight = false;
                     foreach(Vector3 vertex in vertices) {
 
                         // check if vertex is NOT BEHIND the camera
@@ -114,43 +136,68 @@ public class ScreenshotTaker: MonoBehaviour {
                             Vector3 screenPoint = playerCamera.WorldToScreenPoint(vertex);
                             if(new Rect(0, 0, Screen.width, Screen.height).Contains(screenPoint)) {
 
-                                if(screenPoint.x < left)    left = screenPoint.x;
-                                if(screenPoint.x > right)   right = screenPoint.x;
-                                if(screenPoint.y < bottom)  bottom = screenPoint.y;
-                                if(screenPoint.y > top)     top = screenPoint.y;
+                                // check if vertex is obscured by another non-detectable object
+                                bool vertexIsObscured = false;
+                                RaycastHit hitInfo;
+                                if(Physics.Raycast( playerCamera.transform.position,
+                                                    vertex - playerCamera.transform.position,
+                                                    out hitInfo,
+                                                    (vertex - playerCamera.transform.position).magnitude - 0.01f)) {
 
+                                    if(hitInfo.collider.gameObject != detectable) {
+
+                                        vertexIsObscured = true;
+
+                                    } else {
+
+                                        objectInSight = true;
+
+                                    }
+                                }
+
+                                if(!vertexIsObscured) {
+
+                                    if(screenPoint.x < left) left = screenPoint.x;
+                                    if(screenPoint.x > right) right = screenPoint.x;
+                                    if(screenPoint.y < bottom) bottom = screenPoint.y;
+                                    if(screenPoint.y > top) top = screenPoint.y;
+
+                                }
                             }
                         }
                     }
 
-                    // draw the lines
-                    for(int x = (int)left; x <= (int)right; x++) {
-                        screenshot.SetPixel(x, (int)bottom, Color.red);
-                        screenshot.SetPixel(x, (int)top, Color.red);
+                    if(objectInSight) {
+
+                        // draw the lines
+                        for(int x = (int)left; x <= (int)right; x++) {
+                            screenshot.SetPixel(x, (int)bottom, Color.red);
+                            screenshot.SetPixel(x, (int)top, Color.red);
+                        }
+                        for(int y = (int)bottom; y <= (int)top; y++) {
+                            screenshot.SetPixel((int)left, y, Color.red);
+                            screenshot.SetPixel((int)right, y, Color.red);
+                        }
+
+                        // gather corresponding data
+                        int id = -1;
+                        if(detectable.name.StartsWith("Cube")) id = 0;
+                        else if(detectable.name.StartsWith("Ball")) id = 1;
+                        else Debug.Log("Couldn't infer object class");
+
+                        int width = (int)right - (int)left;
+                        int height = (int)top - (int)bottom;
+                        int center_x = (int)left + width / 2;
+                        int center_y = (int)bottom + height / 2;
+
+                        BoxData boxData = new BoxData(id,
+                                                        center_x,
+                                                        center_y,
+                                                        width,
+                                                        height);
+                        boxDataList.Add(boxData);
+
                     }
-                    for(int y = (int)bottom; y <= (int)top; y++) {
-                        screenshot.SetPixel((int)left, y, Color.red);
-                        screenshot.SetPixel((int)right, y, Color.red);
-                    }
-
-                    // gather corresponding data
-                    int id = -1;
-                    if(detectable.name.StartsWith("Cube")) id = 0;
-                    else if(detectable.name.StartsWith("Ball")) id = 1;
-                    else Debug.Log("Couldn't infer object class");
-
-                    int width = (int)right - (int)left;
-                    int height = (int)top - (int)bottom;
-                    int center_x = (int)left + width/2;
-                    int center_y = (int)bottom + height/2;
-
-                    BoxData boxData = new BoxData(  id,
-                                                    center_x,
-                                                    center_y,
-                                                    width,
-                                                    height);
-                    boxDataList.Add(boxData);
-
                 }
             }
 

@@ -61,5 +61,8 @@ crashlytics-build.properties
 # My vscode configurations
 .vscode
 
-# Screenshots created by get_screenshots.py
+# Screenshots created while playing
 screenshots
+
+# Builds are too big
+Builds
