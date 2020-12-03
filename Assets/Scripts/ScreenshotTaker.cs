@@ -24,18 +24,19 @@ public class ScreenshotTaker: MonoBehaviour {
         // Set Cursor to not visible
         Cursor.visible = false;
 
-        sendMessage("Move: WASD");
-        sendMessage("Look: Mouse");
-        sendMessage("Capture: E");
-        sendMessage("Close Application: ESC");
-        sendMessage("Wait at least one second between captures.");
-        sendMessage("Screenshots stored in \"screenshots/\".");
-        sendMessage("STARTING CAPTURING SESSION");
-
         if(SystemInfo.operatingSystem.StartsWith("Windows"))
             path = "screenshots\\";
         else
             path = "screenshots/";
+
+        sendMessage("Move: WASD");
+        sendMessage("Look: Mouse");
+        sendMessage("Capture: E");
+        sendMessage("Hide Info Box: H");
+        sendMessage("Close Application: ESC");
+        sendMessage("<color=red>Wait at least one second between captures.</color>");
+        sendMessage("Screenshots stored in \"" + path + "\".");
+        sendMessage("<color=green>STARTING CAPTURING SESSION</color>");
 
         // instatiate 30 detectables at random positions all over the map
         for(int i = 0; i < detecableCount; i++) {
@@ -67,6 +68,12 @@ public class ScreenshotTaker: MonoBehaviour {
 
         }
 
+        if(Input.GetKeyDown(KeyCode.H)) {
+
+            UICanvas.enabled = !UICanvas.enabled;
+
+        }
+
         IEnumerator CaptureObjects() {
 
             sendMessage("*SNAP*");
@@ -81,12 +88,13 @@ public class ScreenshotTaker: MonoBehaviour {
                             + time.Second + "sec";
 
             // wait till the last possible moment before screen rendering to hide UI
+            bool canvasWasEnabled = UICanvas.enabled;
             yield return null;
             UICanvas.enabled = false;
 
             // wait for screen rendering to complete
             yield return new WaitForEndOfFrame();
-            UICanvas.enabled = true;
+            if(canvasWasEnabled) UICanvas.enabled = true;
 
             // take screenshot and save raw version
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
@@ -106,8 +114,6 @@ public class ScreenshotTaker: MonoBehaviour {
 
                 // get boundary box
                 if(renderer.isVisible) {
-
-                    sendMessage(detectable.name + "(id: " + detectable.GetInstanceID() + ") snapped");
 
                     // get an array of all vertices of the object
                     Mesh mesh = detectable.GetComponent<MeshFilter>().mesh;
@@ -168,6 +174,13 @@ public class ScreenshotTaker: MonoBehaviour {
                     }
 
                     if(objectInSight) {
+
+                        // represent detected objects in the info box
+                        string name = detectable.name;
+                        if(detectable.name.Contains("Cube")) name = "<color=red>" + detectable.name + "</color>";
+                        else if(detectable.name.Contains("Ball")) name = "<color=cyan>" + detectable.name + "</color>";
+                        else Debug.Log("Couldn't recognize object name when colorizing its name.");
+                        sendMessage(name + "(id: " + detectable.GetInstanceID() + ") snapped");
 
                         // draw the lines
                         for(int x = (int)left; x <= (int)right; x++) {
