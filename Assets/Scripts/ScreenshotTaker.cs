@@ -24,6 +24,7 @@ public class ScreenshotTaker: MonoBehaviour {
     // Start is called before the first frame update
     void Start()
     {
+
         Cursor.visible = false;
         allowCapturing = true;
 
@@ -238,11 +239,11 @@ public class ScreenshotTaker: MonoBehaviour {
                             int center_x = (int)left + width / 2;
                             int center_y = (int)bottom + height / 2;
 
-                            BoxData boxData = new BoxData(id,
-                                                            center_x,
-                                                            center_y,
-                                                            width,
-                                                            height);
+                            BoxData boxData = new BoxData(  id,
+                                                            (float)center_x / Screen.width,
+                                                            (float)center_y / Screen.height,
+                                                            (float)width / Screen.width,
+                                                            (float)height / Screen.height);
                             boxDataList.Add(boxData);
 
                         }
@@ -326,12 +327,12 @@ class BoxDataList {
 class BoxData {
 
     public int id;
-    public int pos_x;
-    public int pos_y;
-    public int width;
-    public int height;
+    public float pos_x;
+    public float pos_y;
+    public float width;
+    public float height;
 
-    public BoxData(int objId, int posX, int posY, int width, int height) {
+    public BoxData(int objId, float posX, float posY, float width, float height) {
         
         this.id = objId;
         this.pos_x = posX;
