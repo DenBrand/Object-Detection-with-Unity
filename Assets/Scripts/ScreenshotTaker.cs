@@ -36,10 +36,11 @@ public class ScreenshotTaker: MonoBehaviour {
         sendMessage("Move: WASD");
         sendMessage("Look: Mouse");
         sendMessage("Capture: E");
+        sendMessage("Zoom: Scroll Mouse Wheel");
         sendMessage("Hide Info Box: H");
         sendMessage("Close Application: ESC");
         sendMessage("<color=red>Wait at least one second between captures.</color>");
-        sendMessage("Screenshots stored in \"" + path + "\".");
+        sendMessage("Screenshots are saved in \"" + path + "\".");
         sendMessage("<color=green>STARTING CAPTURING SESSION</color>");
 
         // instatiate 30 detectables at random positions all over the map
@@ -131,15 +132,9 @@ public class ScreenshotTaker: MonoBehaviour {
                 yield return new WaitForEndOfFrame();
                 if(canvasWasEnabled) UICanvas.enabled = true;
 
-                // take screenshot and save raw version
+                // take screenshot
                 Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
                 byte[] screenshotAsJPG = screenshot.EncodeToJPG();
-                if(!Directory.Exists(path)) {
-
-                    Directory.CreateDirectory(path);
-
-                }
-                File.WriteAllBytes(path + timestmp + randomNumber + ".jpg", screenshotAsJPG);
 
                 List<BoxData> boxDataList = new List<BoxData>();
 
@@ -250,34 +245,44 @@ public class ScreenshotTaker: MonoBehaviour {
                     }
                 }
 
-                // save labeled image
-                screenshotAsJPG = screenshot.EncodeToJPG();
-                File.WriteAllBytes(path + timestmp + randomNumber + "_labeled.jpg", screenshotAsJPG);
+                // if at least one object was detected
+                if(boxDataList.Count > 0) {
+                    // save unlabeled image
+                    if(!Directory.Exists(path)) {
 
-                /* // save json data
-                string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
-                File.WriteAllText(path + timestmp + ".json", jsonString);*/
-
-                // save txt file
-                foreach(BoxData boxData in boxDataList) {
-
-                    using(StreamWriter sw = File.AppendText(path + timestmp + randomNumber + ".txt")) {
-
-                        sw.WriteLine(boxData.id + " " +
-                                        boxData.pos_x + " " +
-                                        boxData.pos_y + " " +
-                                        boxData.width + " " +
-                                        boxData.height);
+                        Directory.CreateDirectory(path);
 
                     }
+                    File.WriteAllBytes(path + timestmp + randomNumber + ".jpg", screenshotAsJPG);
+
+                    // save labeled image
+                    screenshotAsJPG = screenshot.EncodeToJPG();
+                    File.WriteAllBytes(path + timestmp + randomNumber + "_labeled.jpg", screenshotAsJPG);
+
+                    /* // save json data
+                    string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
+                    File.WriteAllText(path + timestmp + ".json", jsonString);*/
+
+                    // save txt file
+                    foreach(BoxData boxData in boxDataList) {
+
+                        using(StreamWriter sw = File.AppendText(path + timestmp + randomNumber + ".txt")) {
+
+                            sw.WriteLine(boxData.id + " " +
+                                            boxData.pos_x + " " +
+                                            boxData.pos_y + " " +
+                                            boxData.width + " " +
+                                            boxData.height);
+
+                        }
+                    }
                 }
+                // no object detected
+                else sendMessage("<color=red>Nothing capured. No object in sight.</color>");
 
-                if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(path + timestmp + randomNumber + ".txt")) {
-
-                        sw.WriteLine("");
-
-                }
             }
+            // file already exits => player didn't wait ar least
+            // one seconds AND randomly generated number was the same
             else sendMessage("<color=red>Nothing captured. Please wait at least one second. That's because the " +
                               "screenshots are named with a timestamp messured in seconds. Multiple screenshots " + 
                               "within the same second would lead to overwritten images and faulty labels.</color>");
