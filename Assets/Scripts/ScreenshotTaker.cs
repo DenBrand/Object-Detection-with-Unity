@@ -8,7 +8,7 @@ public class ScreenshotTaker: MonoBehaviour {
 
     [SerializeField] private Camera playerCamera = null;
     [SerializeField] private Canvas UICanvas = null;
-    [SerializeField] private List<GameObject> detectables;
+    [SerializeField] private List<GameObject> detectables = null;
     [SerializeField] private int detecableCount = 0;
     [SerializeField] private GameObject ballPrefab = null;
     [SerializeField] private GameObject cubePrefab = null;
@@ -137,7 +137,7 @@ public class ScreenshotTaker: MonoBehaviour {
                 byte[] screenshotAsJPG = screenshot.EncodeToJPG();
 
                 List<BoxData> boxDataList = new List<BoxData>();
-
+                
                 foreach(GameObject detectable in detectables) {
 
                     Renderer renderer = detectable.GetComponent<Renderer>();
@@ -210,7 +210,6 @@ public class ScreenshotTaker: MonoBehaviour {
                             string name = detectable.name;
                             if(detectable.name.Contains("Cube")) name = "<color=red>" + detectable.name + "</color>";
                             else if(detectable.name.Contains("Ball")) name = "<color=cyan>" + detectable.name + "</color>";
-                            else Debug.Log("Couldn't recognize object name when colorizing its name.");
                             sendMessage(name + "(id: " + detectable.GetInstanceID() + ") snapped");
 
                             // draw the lines
