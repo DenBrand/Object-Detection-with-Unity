@@ -235,7 +235,7 @@ public class ScreenshotTaker: MonoBehaviour {
 
                             BoxData boxData = new BoxData(  id,
                                                             (float)center_x / Screen.width,
-                                                            (float)center_y / Screen.height,
+                                                            1f - (float)center_y / Screen.height,
                                                             (float)width / Screen.width,
                                                             (float)height / Screen.height);
                             boxDataList.Add(boxData);
