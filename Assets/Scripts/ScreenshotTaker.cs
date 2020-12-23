@@ -20,6 +20,7 @@ public class ScreenshotTaker: MonoBehaviour {
     public float deathHeight;
     public GameObject player;
     private bool allowCapturing;
+    private bool allowEmptyCaptures;
 
     // Start is called before the first frame update
     void Start()
@@ -27,6 +28,7 @@ public class ScreenshotTaker: MonoBehaviour {
 
         Cursor.visible = false;
         allowCapturing = true;
+        allowEmptyCaptures = true;
 
         if(SystemInfo.operatingSystem.StartsWith("Windows"))
             path = "screenshots\\";
@@ -38,6 +40,7 @@ public class ScreenshotTaker: MonoBehaviour {
         sendMessage("Capture: E");
         sendMessage("Zoom: Scroll Mouse Wheel");
         sendMessage("Hide Info Box: H");
+        sendMessage("Toggle capture empty images: P (default: <color=green>ON</color>)");
         sendMessage("Close Application: ESC");
         sendMessage("<color=red>Wait at least one second between captures.</color>");
         sendMessage("Screenshots are saved in \"" + path + "\".");
@@ -92,9 +95,13 @@ public class ScreenshotTaker: MonoBehaviour {
             }
         }
 
-        if(Input.GetKeyDown(KeyCode.H)) {
+        if(Input.GetKeyDown(KeyCode.H)) UICanvas.enabled = !UICanvas.enabled;
 
-            UICanvas.enabled = !UICanvas.enabled;
+        if(Input.GetKeyDown(KeyCode.P)) {
+
+            allowEmptyCaptures = !allowEmptyCaptures;
+            if(allowEmptyCaptures) sendMessage("Capturing empty images is toggled <color=green>ON</color>");
+            else sendMessage("Capturing empty images is toggled <color=red>OFF</color>.");
 
         }
 
@@ -245,7 +252,7 @@ public class ScreenshotTaker: MonoBehaviour {
                 }
 
                 // if at least one object was detected
-                if(boxDataList.Count > 0) {
+                if(allowEmptyCaptures || boxDataList.Count > 0) {
                     // save unlabeled image
                     if(!Directory.Exists(path)) {
 
@@ -275,9 +282,10 @@ public class ScreenshotTaker: MonoBehaviour {
 
                         }
                     }
+                    if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(path + timestmp + randomNumber + ".txt")) sw.Write("");
                 }
                 // no object detected
-                else sendMessage("<color=red>Nothing capured. No object in sight.</color>");
+                else sendMessage("<color=red>Nothing capured. No object in sight. If you want to capture empty images too, please press the <color=blue>P</color> button</color>");
 
             }
             // file already exits => player didn't wait ar least
