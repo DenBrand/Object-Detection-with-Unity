@@ -13,7 +13,10 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private GameObject ballPrefab = null;
     [SerializeField] private GameObject cubePrefab = null;
     [SerializeField] private GameObject detectablesParent = null;
-    private string path;
+    private string trainingDataPath;
+    private string yoloDataPath;
+    private string cascadeClassifierDataPath;
+    private string cascadeClassifierDataJSONPath;
     public int maxMessages;
     [SerializeField] List<Message> messageList = new List<Message>();
     public GameObject contentObject, textObject;
@@ -21,7 +24,9 @@ public class ScreenshotTaker: MonoBehaviour {
     public GameObject player;
     private bool allowCapturing;
     private bool allowEmptyCaptures;
-
+    private CascadeClassifierData cascadeClassifierData;
+    private int runId;
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -30,10 +35,19 @@ public class ScreenshotTaker: MonoBehaviour {
         allowCapturing = true;
         allowEmptyCaptures = true;
 
-        if(SystemInfo.operatingSystem.StartsWith("Windows"))
-            path = "screenshots\\";
-        else
-            path = "screenshots/";
+        // specify certain paths
+        if(SystemInfo.operatingSystem.StartsWith("Windows")) {
+            trainingDataPath = "training_data\\";
+            yoloDataPath = trainingDataPath + "yolo\\";
+            cascadeClassifierDataPath = trainingDataPath + "cascade_classifier\\";
+            cascadeClassifierDataJSONPath = cascadeClassifierDataPath + "training_data.json";
+        }
+        else {
+            trainingDataPath = "training_data/";
+            yoloDataPath = trainingDataPath + "yolo/";
+            cascadeClassifierDataPath = trainingDataPath + "cascade_classifier/";
+            cascadeClassifierDataJSONPath = cascadeClassifierDataPath + "training_data.json";
+        }
 
         sendMessage("Move: WASD");
         sendMessage("Look: Mouse");
@@ -43,7 +57,7 @@ public class ScreenshotTaker: MonoBehaviour {
         sendMessage("Toggle capture empty images: P (default: <color=green>ON</color>)");
         sendMessage("Close Application: ESC");
         sendMessage("<color=red>Wait at least one second between captures.</color>");
-        sendMessage("Screenshots are saved in \"" + path + "\".");
+        sendMessage("Training data are saved in \"" + trainingDataPath + "\".");
         sendMessage("<color=green>STARTING CAPTURING SESSION</color>");
 
         // instatiate 30 detectables at random positions all over the map
@@ -61,6 +75,22 @@ public class ScreenshotTaker: MonoBehaviour {
             detectables.Add(detectable);
 
         }
+
+        // Load cascade classifier data already existent
+        runId = Random.Range(0, 10000);
+        if(!Directory.Exists(cascadeClassifierDataPath)) {
+            Directory.CreateDirectory(cascadeClassifierDataPath);
+        }
+        if(File.Exists(cascadeClassifierDataJSONPath)) {
+            string jsonString = File.ReadAllText(cascadeClassifierDataJSONPath);
+            cascadeClassifierData = JsonUtility.FromJson<CascadeClassifierData>(jsonString);
+        }
+        else {
+            cascadeClassifierData = new CascadeClassifierData();
+        }
+        // TODO: Add new RunData entry
+        cascadeClassifierData.runData.Add(runId, new RunData());
+
     }
 
     // Update is called once per frame
@@ -124,9 +154,9 @@ public class ScreenshotTaker: MonoBehaviour {
                             + time.Minute + "min"
                             + time.Second + "sec";
 
-            int randomNumber = Random.Range(0, 9999);
+            int randomNumber = Random.Range(0, 10000);
 
-            if(!File.Exists(path + timestmp + randomNumber + ".jpg")) {
+            if(!File.Exists(trainingDataPath + timestmp + randomNumber + ".png")) {
 
                 sendMessage("*SNAP*");
 
@@ -141,7 +171,7 @@ public class ScreenshotTaker: MonoBehaviour {
 
                 // take screenshot
                 Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
-                byte[] screenshotAsJPG = screenshot.EncodeToJPG();
+                byte[] screenshotAsPNG = screenshot.EncodeToPNG();
 
                 List<BoxData> boxDataList = new List<BoxData>();
                 
@@ -233,19 +263,26 @@ public class ScreenshotTaker: MonoBehaviour {
                             int id = -1;
                             if(detectable.name.StartsWith("Cube")) id = 0;
                             else if(detectable.name.StartsWith("Ball")) id = 1;
-                            else Debug.Log("Couldn't infer object class");
-
-                            int width = (int)right - (int)left;
-                            int height = (int)top - (int)bottom;
-                            int center_x = (int)left + width / 2;
-                            int center_y = (int)bottom + height / 2;
+                            else {
+                                Debug.LogError("Couldn't infer object class");
+                                throw new System.Exception("Detected an object whose id cannot be infered.");
+                            }
+                            
+                            int width = Mathf.RoundToInt(right) - Mathf.RoundToInt(left);
+                            int height = Mathf.RoundToInt(top) - Mathf.RoundToInt(bottom);
 
                             BoxData boxData = new BoxData(  id,
-                                                            (float)center_x / Screen.width,
-                                                            1f - (float)center_y / Screen.height,
-                                                            (float)width / Screen.width,
-                                                            (float)height / Screen.height);
+                                                            Mathf.RoundToInt(left),
+                                                            Mathf.RoundToInt(Screen.height - top),
+                                                            width,
+                                                            height);
                             boxDataList.Add(boxData);
+
+                        }
+                        else {
+
+                            // TODO: Add to negatives (check if it is saved in this case)
+                            // cascadeClassifierData.runData[runId].detectableData[0].posNegData["negatives"].Add(...) // Funktion noch überladen?
 
                         }
                     }
@@ -253,36 +290,44 @@ public class ScreenshotTaker: MonoBehaviour {
 
                 // if at least one object was detected
                 if(allowEmptyCaptures || boxDataList.Count > 0) {
-                    // save unlabeled image
-                    if(!Directory.Exists(path)) {
 
-                        Directory.CreateDirectory(path);
+                    // save unlabeled image
+                    if(!Directory.Exists(trainingDataPath)) {
+
+                        Directory.CreateDirectory(trainingDataPath);
 
                     }
-                    File.WriteAllBytes(path + timestmp + randomNumber + ".jpg", screenshotAsJPG);
+                    File.WriteAllBytes(trainingDataPath + timestmp + randomNumber + ".png", screenshotAsPNG);
 
                     // save labeled image
-                    screenshotAsJPG = screenshot.EncodeToJPG();
-                    File.WriteAllBytes(path + timestmp + randomNumber + "_labeled.jpg", screenshotAsJPG);
+                    screenshotAsPNG = screenshot.EncodeToPNG();
+                    File.WriteAllBytes(trainingDataPath + timestmp + randomNumber + "_labeled.png", screenshotAsPNG);
 
                     /* // save json data
                     string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
                     File.WriteAllText(path + timestmp + ".json", jsonString);*/
 
-                    // save txt file
+                    // save txt file as yolo label
                     foreach(BoxData boxData in boxDataList) {
 
-                        using(StreamWriter sw = File.AppendText(path + timestmp + randomNumber + ".txt")) {
+                        using(StreamWriter sw = File.AppendText(trainingDataPath + timestmp + randomNumber + ".txt")) {
 
-                            sw.WriteLine(boxData.id + " " +
-                                            boxData.pos_x + " " +
-                                            boxData.pos_y + " " +
-                                            boxData.width + " " +
-                                            boxData.height);
+                            Debug.Log(Screen.width);
+                            Debug.Log(Screen.height);
+
+                            sw.WriteLine(   boxData.id + " " +
+                                            (float)(boxData.x + boxData.w/2) / Screen.width + " " +
+                                            (float)(boxData.y + boxData.h/2) / Screen.height + " " +
+                                            (float)boxData.w / Screen.width + " " +
+                                            (float)boxData.h / Screen.height);
 
                         }
                     }
-                    if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(path + timestmp + randomNumber + ".txt")) sw.Write("");
+                    if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(trainingDataPath + timestmp + randomNumber + ".txt")) sw.Write("");
+
+                    // TODO: add label data to runData
+                    // cascadeClassifierData.runData[runId]... // and so on...
+
                 }
                 // no object detected
                 else sendMessage("<color=red>Nothing capured. No object in sight. If you want to capture empty images too, please press the <color=blue>P</color> button</color>");
@@ -339,17 +384,130 @@ class BoxDataList {
 class BoxData {
 
     public int id;
-    public float pos_x;
-    public float pos_y;
-    public float width;
-    public float height;
+    public int x;
+    public int y;
+    public int w;
+    public int h;
 
-    public BoxData(int objId, float posX, float posY, float width, float height) {
+    public BoxData(int objId, int posX, int posY, int width, int height) {
         
         this.id = objId;
-        this.pos_x = posX;
-        this.pos_y = posY;
-        this.width = width;
-        this.height = height;
+        this.x = posX;
+        this.y = posY;
+        this.w = width;
+        this.h = height;
     }
+}
+
+// Neccessary classes for cascading classifier data
+[System.Serializable]
+class CascadeClassifierData {
+
+    public Dictionary<int, RunData> runData;
+
+    public CascadeClassifierData() {
+
+        this.runData = new Dictionary<int, RunData>();
+
+    }
+
+}
+
+[System.Serializable]
+class RunData {
+
+    public Dictionary<int, DetectableData> detectableData;
+
+    public RunData() {
+
+        this.detectableData = new Dictionary<int, DetectableData>();
+
+        // add entry for every detectable class
+        this.detectableData.Add(0, new DetectableData()); // for cubes
+        this.detectableData.Add(1, new DetectableData()); // for balls
+        //this.detectableData.Add(2, new DetectableData()); // for tetraeders
+
+    }
+
+}
+
+[System.Serializable]
+class DetectableData {
+
+    public Dictionary<string, PosNegData> posNegData;
+
+    public DetectableData() {
+
+        posNegData = new Dictionary<string, PosNegData>();
+        posNegData.Add("positives", new PositivesData());
+        posNegData.Add("negatives", new NegativesData());
+
+    }
+
+}
+
+interface PosNegData {
+
+    // void Add(??); // TODO: ebenso in PositivesData und NegativesData
+
+}
+
+[System.Serializable]
+class PositivesData : PosNegData {
+
+    public Dictionary<string, BBox> boxEntries;
+
+    public PositivesData() {
+
+        this.boxEntries = new Dictionary<string, BBox>();
+
+    }
+
+    public void Add()
+
+}
+
+[System.Serializable]
+class BBox {
+
+    public int x;
+    public int y;
+    public int w;
+    public int h;
+
+    public BBox(int x, int y, int w, int h) {
+
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+
+    }
+
+}
+
+[System.Serializable]
+class NegativesData : PosNegData {
+
+    public List<NegPath> negPaths;
+
+    public NegativesData() {
+
+        this.negPaths = new List<NegPath>();
+
+    }
+
+}
+
+[System.Serializable]
+class NegPath {
+
+    public string negPath;
+
+    public NegPath(string path) {
+
+        negPath = path;
+
+    }
+
 }
