@@ -284,17 +284,12 @@ public class ScreenshotTaker: MonoBehaviour {
                             boxDataList.Add(boxData);
 
                             // add to positives
-                            bool legit = true;
-                            foreach(PositiveElement posElem in positiveElements)
-                                if(posElem.path == "positives\\" + timestmp + randomNumber + ".png")
-                                    legit = false;
-                            if(legit)
-                                positiveElements.Add(new PositiveElement(   classId,
-                                                                            "positives\\" + timestmp + randomNumber + ".png",
-                                                                            new BBox(   Mathf.RoundToInt(left),
-                                                                                        Mathf.RoundToInt(Screen.height - top),
-                                                                                        width,
-                                                                                        height)));
+                            positiveElements.Add(new PositiveElement(   classId,
+                                                                        "positives\\" + timestmp + randomNumber + ".png",
+                                                                        new BBox(   Mathf.RoundToInt(left),
+                                                                                    Mathf.RoundToInt(Screen.height - top),
+                                                                                    width,
+                                                                                    height)));
 
                         }
                     }
