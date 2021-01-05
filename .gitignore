@@ -62,7 +62,7 @@ crashlytics-build.properties
 .vscode
 
 # Screenshots created while playing
-screenshots
+training_data
 
 # Builds are too big
 # Builds

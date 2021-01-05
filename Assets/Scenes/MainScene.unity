@@ -154,11 +154,11 @@ RectTransform:
   m_Father: {fileID: 1295764290}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.00088692, y: -170.69}
-  m_SizeDelta: {x: 800.0018, y: 108.60466}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 108.604675}
+  m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &56507334
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -84541,9 +84541,6 @@ MonoBehaviour:
   playerCamera: {fileID: 68374348}
   UICanvas: {fileID: 1295764289}
   detectables: []
-  detectableNames:
-  - Cube
-  - Ball
   detecableCount: 50
   ballPrefab: {fileID: 8828635394722551697, guid: 77ca67b70a9c1b84982f200211fba5c0,
     type: 3}
@@ -84577,7 +84574,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh14156
+  m_Name: pb_Mesh14152
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -84836,9 +84833,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 150, y: -129.7}
+  m_AnchoredPosition: {x: 0.000030517578, y: 0}
   m_SizeDelta: {x: 300, y: 221.9065}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &530201561
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -85122,9 +85119,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 0, y: -18.75}
+  m_AnchoredPosition: {x: 0.000030517578, y: 0}
   m_SizeDelta: {x: 300, y: 18.786224}
-  m_Pivot: {x: 0, y: 0}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &886101058
 MonoBehaviour:
   m_ObjectHideFlags: 0
