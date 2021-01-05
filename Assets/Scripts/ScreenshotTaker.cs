@@ -88,7 +88,7 @@ public class ScreenshotTaker: MonoBehaviour {
         else {
             cascadeClassifierData = new CascadeClassifierData();
         }
-        // TODO: Add new RunData entry
+        // add new RunData entry
         cascadeClassifierData.runData.Add(runId, new RunData());
 
     }
@@ -268,6 +268,7 @@ public class ScreenshotTaker: MonoBehaviour {
                                 throw new System.Exception("Detected an object whose id cannot be infered.");
                             }
                             
+                            // for yolo
                             int width = Mathf.RoundToInt(right) - Mathf.RoundToInt(left);
                             int height = Mathf.RoundToInt(top) - Mathf.RoundToInt(bottom);
 
@@ -278,11 +279,22 @@ public class ScreenshotTaker: MonoBehaviour {
                                                             height);
                             boxDataList.Add(boxData);
 
+                            // for cascade classifier
+                            cascadeClassifierData.runData[runId].
+                                    detectableData[]
+
                         }
                         else {
 
-                            // TODO: Add to negatives (check if it is saved in this case)
-                            // cascadeClassifierData.runData[runId].detectableData[0].posNegData["negatives"].Add(...) // Funktion noch überladen?
+                            // Add to negatives CHECK: is it saved in this case?
+                            if(detectable.name.Contains("Cube")) cascadeClassifierData.runData[runId].
+                                    detectableData[0].posNegData["negatives"].
+                                    Add(timestmp + randomNumber + ".png");
+                            else if(detecableCount.name.Contains("Ball")) cascadeClassifierData.runData[runId].
+                                    detectableData[1].posNegData["negatives"].
+                                    Add(timestmp + randomNumber + ".png");
+                            // NONONO: für jede classe (index von detectableData) muss bestimmt werden,
+                            // ob es sich um ein jeweiliges Objekt handelt! "Detectable-Klassen-weise" vorgehen.
 
                         }
                     }
@@ -448,7 +460,8 @@ class DetectableData {
 
 interface PosNegData {
 
-    // void Add(??); // TODO: ebenso in PositivesData und NegativesData
+    void Add(string path, BBox bbox);
+    void Add(string path);
 
 }
 
@@ -463,7 +476,13 @@ class PositivesData : PosNegData {
 
     }
 
-    public void Add()
+    public void Add(string path, BBox bbox) {
+
+        this.boxEntries.Add(path, bbox);
+
+    }
+    
+    public void Add(string path) {}
 
 }
 
@@ -494,6 +513,14 @@ class NegativesData : PosNegData {
     public NegativesData() {
 
         this.negPaths = new List<NegPath>();
+
+    }
+
+    public void Add(string path, BBox bbox) {}
+
+    public void Add(string path) {
+
+        this.negPaths.Add(new NegPath(path));
 
     }
 
