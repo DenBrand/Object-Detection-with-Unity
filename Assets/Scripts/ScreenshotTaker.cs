@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System.IO;
+using System;
 
 public class ScreenshotTaker: MonoBehaviour {
 
@@ -25,7 +26,7 @@ public class ScreenshotTaker: MonoBehaviour {
     private bool allowCapturing;
     private bool allowEmptyCaptures;
     private CascadeClassifierData cascadeClassifierData;
-    private int runId;
+    private string runId;
     private RunData runData;
     
     // Start is called before the first frame update
@@ -64,13 +65,13 @@ public class ScreenshotTaker: MonoBehaviour {
         // instatiate 30 detectables at random positions all over the map
         for(int i = 0; i < detecableCount; i++) {
 
-            Vector3 randomPosition = new Vector3(Random.Range(-100f, 100f), 10f, Random.Range(-100f, 100f));
+            Vector3 randomPosition = new Vector3(UnityEngine.Random.Range(-100f, 100f), 10f, UnityEngine.Random.Range(-100f, 100f));
 
             GameObject detectable = Instantiate(   i % 2 == 0 ? cubePrefab : ballPrefab,
                                                     randomPosition,
-                                                    Quaternion.Euler(   Random.Range(0f, 180f),
-                                                                        Random.Range(0f, 180f),
-                                                                        Random.Range(0f, 180f)),
+                                                    Quaternion.Euler(   UnityEngine.Random.Range(0f, 180f),
+                                                                        UnityEngine.Random.Range(0f, 180f),
+                                                                        UnityEngine.Random.Range(0f, 180f)),
                                                     detectablesParent.transform);
             
             detectables.Add(detectable);
@@ -90,7 +91,7 @@ public class ScreenshotTaker: MonoBehaviour {
         }
 
         // add new RunData entry
-        runId = Random.Range(0, 10000);
+        runId = string.Format("{0}_{1}", Environment.UserName.GetHashCode(), UnityEngine.Random.Range(0, 10000));
         runData = new RunData(runId);
         cascadeClassifierData.runData.Add(runData);
 
@@ -157,7 +158,7 @@ public class ScreenshotTaker: MonoBehaviour {
                             + time.Minute + "min"
                             + time.Second + "sec";
 
-            int randomNumber = Random.Range(0, 10000);
+            int randomNumber = UnityEngine.Random.Range(0, 10000);
 
             if(!File.Exists(trainingDataPath + timestmp + randomNumber + ".png")) {
 
@@ -273,8 +274,8 @@ public class ScreenshotTaker: MonoBehaviour {
 
                             // gather corresponding data
                             // for yolo
-                            int width = Mathf.RoundToInt(right) - Mathf.RoundToInt(left);
-                            int height = Mathf.RoundToInt(top) - Mathf.RoundToInt(bottom);
+                            float width = right - left;
+                            float height = top - bottom;
 
                             BoxData boxData = new BoxData(  classId,
                                                             Mathf.RoundToInt(left),
@@ -288,8 +289,8 @@ public class ScreenshotTaker: MonoBehaviour {
                                                                         "positives\\" + timestmp + randomNumber + ".png",
                                                                         new BBox(   Mathf.RoundToInt(left),
                                                                                     Mathf.RoundToInt(Screen.height - top),
-                                                                                    width,
-                                                                                    height)));
+                                                                                    Mathf.RoundToInt(width),
+                                                                                    Mathf.RoundToInt(height))));
 
                         }
                     }
@@ -308,7 +309,6 @@ public class ScreenshotTaker: MonoBehaviour {
 
                         classFound[0] = true;
                         runData.cubes.positives.Add(new PositivesData(posElem.path, posElem.bbox));
-                        
 
                     }
                     else if(posElem.classId == 1) {
@@ -374,7 +374,6 @@ public class ScreenshotTaker: MonoBehaviour {
 
                     // overwrite json for cascade classifier
                     string jsonString = JsonUtility.ToJson(cascadeClassifierData, true);
-                    Debug.Log(jsonString);
                     File.WriteAllText(cascadeClassifierDataJSONPath, jsonString);
 
                 }
@@ -433,12 +432,12 @@ class BoxDataList {
 class BoxData {
 
     public int id;
-    public int x;
-    public int y;
-    public int w;
-    public int h;
+    public float x;
+    public float y;
+    public float w;
+    public float h;
 
-    public BoxData(int objId, int posX, int posY, int width, int height) {
+    public BoxData(int objId, float posX, float posY, float width, float height) {
         
         this.id = objId;
         this.x = posX;
@@ -466,12 +465,12 @@ class CascadeClassifierData {
 [System.Serializable]
 class RunData {
 
-    public int runId;
+    public string runId;
     public DetectableData cubes;
     public DetectableData balls;
     //public List<DetectableData> tetraeders;
 
-    public RunData(int runId) {
+    public RunData(string runId) {
 
         this.runId = runId;
         this.cubes = new DetectableData(); // for cubes
