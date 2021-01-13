@@ -64,5 +64,8 @@ crashlytics-build.properties
 # Screenshots created while playing
 training_data
 
-# Builds are too big
-# Builds
+# Builds are too big, only the most current may be uploaded
+Builds/Windows_x86_64/*
+Builds/Linux_x86_64/*
+!Builds/Windows_x86_64/v1.7.2/
+!Builds/Linux_x86_64/v1.7.2/

@@ -14,6 +14,7 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private GameObject ballPrefab = null;
     [SerializeField] private GameObject cubePrefab = null;
     [SerializeField] private GameObject detectablesParent = null;
+    [SerializeField] private int minimalDetectionSize = 0;
     private string trainingDataPath;
     private string yoloDataPath;
     private string cascadeClassifierDataPath;
@@ -65,9 +66,20 @@ public class ScreenshotTaker: MonoBehaviour {
         // instatiate 30 detectables at random positions all over the map
         for(int i = 0; i < detecableCount; i++) {
 
-            Vector3 randomPosition = new Vector3(UnityEngine.Random.Range(-100f, 100f), 10f, UnityEngine.Random.Range(-100f, 100f));
 
-            GameObject detectable = Instantiate(   i % 2 == 0 ? cubePrefab : ballPrefab,
+            // gernerate randomly chosen detectables
+            Vector3 randomPosition = new Vector3(UnityEngine.Random.Range(-100f, 100f), 10f, UnityEngine.Random.Range(-100f, 100f));
+            GameObject chosenGameObject = null;
+            if(i % 2 == 0) chosenGameObject = cubePrefab;
+            else if(i % 2 == 1) chosenGameObject = ballPrefab;
+            //else if(i % 2 == 2) chosenGameObject = tetraederPrefab; // add new detectable class
+            else {
+
+                Debug.LogError("Game tried to instantiate a detectable, whose type could not be infered.");
+                throw new Exception("Game tried to instantiate a detectable, whose type could not be infered.");
+
+            }
+            GameObject detectable = Instantiate(    chosenGameObject,
                                                     randomPosition,
                                                     Quaternion.Euler(   UnityEngine.Random.Range(0f, 180f),
                                                                         UnityEngine.Random.Range(0f, 180f),
@@ -92,7 +104,8 @@ public class ScreenshotTaker: MonoBehaviour {
 
         // add new RunData entry
         runId = string.Format("{0}_{1}", Environment.UserName.GetHashCode(), UnityEngine.Random.Range(0, 10000));
-        runData = new RunData(runId);
+        string version = Application.version;
+        runData = new RunData(runId, version);
         cascadeClassifierData.runData.Add(runData);
 
     }
@@ -177,6 +190,7 @@ public class ScreenshotTaker: MonoBehaviour {
                 Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
                 byte[] screenshotAsPNG = screenshot.EncodeToPNG();
 
+                bool allSizesSufficient = true;
                 List<BoxData> boxDataList = new List<BoxData>();
                 List<PositiveElement> positiveElements = new List<PositiveElement>();
                 foreach(GameObject detectable in detectables) {
@@ -249,136 +263,163 @@ public class ScreenshotTaker: MonoBehaviour {
                         int classId = -1;
                         if(detectable.name.StartsWith("Cube")) classId = 0;
                         else if(detectable.name.StartsWith("Ball")) classId = 1;
+                        // else if(detectable.name.StartsWith("Tetraeder")) classId = 2; // add new detectable class
                         else {
                             Debug.LogError("Couldn't infer object class");
                             throw new System.Exception("Detected an object whose id cannot be infered.");
                         }
 
+                        // add object to data
                         if(objectInSight) {
 
-                            // represent detected objects in the info box
-                            string name = detectable.name;
-                            if(detectable.name.Contains("Cube")) name = "<color=red>" + detectable.name + "</color>";
-                            else if(detectable.name.Contains("Ball")) name = "<color=cyan>" + detectable.name + "</color>";
-                            sendMessage(name + "(id: " + detectable.GetInstanceID() + ") snapped");
-
-                            // draw the lines
-                            for(int x = (int)left; x <= (int)right; x++) {
-                                screenshot.SetPixel(x, (int)bottom, Color.red);
-                                screenshot.SetPixel(x, (int)top, Color.red);
-                            }
-                            for(int y = (int)bottom; y <= (int)top; y++) {
-                                screenshot.SetPixel((int)left, y, Color.red);
-                                screenshot.SetPixel((int)right, y, Color.red);
-                            }
-
-                            // gather corresponding data
-                            // for yolo
+                            // check if object is at least 12 pixels wide and high
+                            bool tooSmall = false;
                             float width = right - left;
                             float height = top - bottom;
+                            bool wasDetected = left != Screen.width + 1f && right != -1f && top != -1f && bottom != Screen.height + 1f;
+                            if((Mathf.RoundToInt(width) < minimalDetectionSize || Mathf.RoundToInt(height) < minimalDetectionSize) && wasDetected)
+                                tooSmall = true;
 
-                            BoxData boxData = new BoxData(  classId,
-                                                            Mathf.RoundToInt(left),
-                                                            Mathf.RoundToInt(Screen.height - top),
-                                                            width,
-                                                            height);
-                            boxDataList.Add(boxData);
+                            if(!tooSmall) {
 
-                            // add to positives
-                            positiveElements.Add(new PositiveElement(   classId,
-                                                                        "positives\\" + timestmp + randomNumber + ".png",
-                                                                        new BBox(   Mathf.RoundToInt(left),
-                                                                                    Mathf.RoundToInt(Screen.height - top),
-                                                                                    Mathf.RoundToInt(width),
-                                                                                    Mathf.RoundToInt(height))));
+                                // represent detected objects in the info box
+                                string name = detectable.name;
+                                if(detectable.name.Contains("Cube")) name = "<color=red>" + detectable.name + "</color>";
+                                else if(detectable.name.Contains("Ball")) name = "<color=cyan>" + detectable.name + "</color>";
+                                sendMessage(name + "(id: " + detectable.GetInstanceID() + ") snapped");
 
+                                // draw the lines
+                                for(int x = (int)left; x <= (int)right; x++) {
+                                    screenshot.SetPixel(x, (int)bottom, Color.red);
+                                    screenshot.SetPixel(x, (int)top, Color.red);
+                                }
+                                for(int y = (int)bottom; y <= (int)top; y++) {
+                                    screenshot.SetPixel((int)left, y, Color.red);
+                                    screenshot.SetPixel((int)right, y, Color.red);
+                                }
+
+                                // gather corresponding data
+
+                                // for yolo
+                                BoxData boxData = new BoxData(classId,
+                                                                Mathf.RoundToInt(left),
+                                                                Mathf.RoundToInt(Screen.height - top),
+                                                                width,
+                                                                height);
+                                boxDataList.Add(boxData);
+
+                                // add to positives
+                                positiveElements.Add(new PositiveElement(classId,
+                                                                            "positives\\" + timestmp + randomNumber + ".png",
+                                                                            new BBox(Mathf.RoundToInt(left),
+                                                                                        Mathf.RoundToInt(Screen.height - top),
+                                                                                        Mathf.RoundToInt(width),
+                                                                                        Mathf.RoundToInt(height))));
+
+                            }
+                            else allSizesSufficient = false;
                         }
                     }
                 }
 
-                // add cascade classifier data and for every class,
-                // check if there is a positive element for that class.
-                // no: add image as negative element for that class.
-                List<NegativeElement> negativeElements = new List<NegativeElement>();
-                Dictionary<int, bool> classFound = new Dictionary<int, bool>();
-                classFound.Add(0, false);
-                classFound.Add(1, false);
-                foreach(PositiveElement posElem in positiveElements) {
+                if(allSizesSufficient) {
 
-                    if(posElem.classId == 0) {
+                    // add cascade classifier data and for every class,
+                    // check if there is a positive element for that class.
+                    // if no: add image as negative element for that class.
+                    List<NegativeElement> negativeElements = new List<NegativeElement>();
+                    Dictionary<int, bool> classFound = new Dictionary<int, bool>();
+                    classFound.Add(0, false);
+                    classFound.Add(1, false);
+                    foreach(PositiveElement posElem in positiveElements) {
 
-                        classFound[0] = true;
-                        runData.cubes.positives.Add(new PositivesData(posElem.path, posElem.bbox));
+                        if(posElem.classId == 0) {
 
-                    }
-                    else if(posElem.classId == 1) {
+                            classFound[0] = true;
+                            runData.cubes.positives.Add(new PositivesData(posElem.path, posElem.bbox));
 
-                        classFound[1] = true;
-                        runData.balls.positives.Add(new PositivesData(posElem.path, posElem.bbox));
+                        }
+                        else if(posElem.classId == 1) {
 
-                    }
-                    else {
+                            classFound[1] = true;
+                            runData.balls.positives.Add(new PositivesData(posElem.path, posElem.bbox));
 
-                        Debug.LogError("The script added a non-existent detectable class to the \"positiveElements\" variable. This error is fatal. Please inform Dennis about this.");
-                        throw new System.Exception("The script added a non-existent detectable class to the \"positiveElements\" variable. This error is fatal. Please inform Dennis about this.");
+                        }
+                        /*else if(posElem.classId == 2) { // add new detectable class
 
-                    }
-                }
+                            classFound[2] = true;
+                            runData.tetraeders.positives.Add(new PositivesData(posElem.path, posElem.bbox));
 
-                foreach(int classId in classFound.Keys)
-                    if(!classFound[classId])
-                        if(classId == 0)
-                            runData.cubes.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));
-                        else if(classId == 1)
-                            runData.balls.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));
+                        }*/
                         else {
 
-                            Debug.LogError("The script had a non-existent detectable class in the \"classFound.Key\" field. This error is fatal. Please inform Dennis about this.");
-                            throw new System.Exception("The script had a non-existent detectable class in the \"classFound.Key\" field. This error is fatal. Please inform Dennis about this.");
-
-                        }
-
-                // if at least one object was detected
-                if(allowEmptyCaptures || boxDataList.Count > 0) {
-
-                    // save unlabeled image
-                    if(!Directory.Exists(yoloDataPath)) {
-
-                        Directory.CreateDirectory(yoloDataPath);
-
-                    }
-                    File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + ".png", screenshotAsPNG);
-
-                    // save labeled image
-                    screenshotAsPNG = screenshot.EncodeToPNG();
-                    File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + "_labeled.png", screenshotAsPNG);
-
-                    /* // save json data
-                    string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
-                    File.WriteAllText(path + timestmp + ".json", jsonString);*/
-
-                    // save txt file as yolo label
-                    foreach(BoxData boxData in boxDataList) {
-
-                        using(StreamWriter sw = File.AppendText(yoloDataPath + timestmp + randomNumber + ".txt")) {
-
-                            sw.WriteLine(   boxData.id + " " +
-                                            (float)(boxData.x + boxData.w/2) / Screen.width + " " +
-                                            (float)(boxData.y + boxData.h/2) / Screen.height + " " +
-                                            (float)boxData.w / Screen.width + " " +
-                                            (float)boxData.h / Screen.height);
+                            Debug.LogError("The script added a non-existent detectable class to the \"positiveElements\" variable. This error is fatal. Please inform Dennis about this.");
+                            throw new System.Exception("The script added a non-existent detectable class to the \"positiveElements\" variable. This error is fatal. Please inform Dennis about this.");
 
                         }
                     }
-                    if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(yoloDataPath + timestmp + randomNumber + ".txt")) sw.Write("");
 
-                    // overwrite json for cascade classifier
-                    string jsonString = JsonUtility.ToJson(cascadeClassifierData, true);
-                    File.WriteAllText(cascadeClassifierDataJSONPath, jsonString);
+                    // add negative elements
+                    foreach(int classId in classFound.Keys)
+                        if(!classFound[classId])
+                            if(classId == 0)
+                                runData.cubes.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));
+                            else if(classId == 1)
+                                runData.balls.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));
+                            /*else if(classId == 2) // add new detectable class
+                                runData.tetraeders.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));*/
+                            else {
+
+                                Debug.LogError("The script had a non-existent detectable class in the \"classFound.Key\" field. This error is fatal. Please inform Dennis about this.");
+                                throw new System.Exception("The script had a non-existent detectable class in the \"classFound.Key\" field. This error is fatal. Please inform Dennis about this.");
+
+                            }
+
+                    // if at least one object was detected
+                    if(allowEmptyCaptures || boxDataList.Count > 0) {
+
+                        // save unlabeled image
+                        if(!Directory.Exists(yoloDataPath)) {
+
+                            Directory.CreateDirectory(yoloDataPath);
+
+                        }
+                        File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + ".png", screenshotAsPNG);
+
+                        // save labeled image
+                        screenshotAsPNG = screenshot.EncodeToPNG();
+                        File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + "_labeled.png", screenshotAsPNG);
+
+                        // save json data
+                        /* string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
+                        File.WriteAllText(path + timestmp + ".json", jsonString);*/
+
+                        // save txt file as yolo label
+                        foreach(BoxData boxData in boxDataList) {
+
+                            using(StreamWriter sw = File.AppendText(yoloDataPath + timestmp + randomNumber + ".txt")) {
+
+                                sw.WriteLine(boxData.id + " " +
+                                                (float)(boxData.x + boxData.w / 2) / Screen.width + " " +
+                                                (float)(boxData.y + boxData.h / 2) / Screen.height + " " +
+                                                (float)boxData.w / Screen.width + " " +
+                                                (float)boxData.h / Screen.height);
+
+                            }
+                        }
+                        if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(yoloDataPath + timestmp + randomNumber + ".txt")) sw.Write("");
+
+                        // overwrite json for cascade classifier
+                        string jsonString = JsonUtility.ToJson(cascadeClassifierData, true);
+                        File.WriteAllText(cascadeClassifierDataJSONPath, jsonString);
+
+                    }
+                    // no object detected and capturing labels without detections is off
+                    else sendMessage("<color=red>Nothing captured. No object in sight. If you want to capture empty images too, please press the <color=blue>P</color> button</color>");
 
                 }
-                // no object detected and capturing labels without detections is off
-                else sendMessage("<color=red>Nothing capured. No object in sight. If you want to capture empty images too, please press the <color=blue>P</color> button</color>");
+                else sendMessage(   "<color=red>Nothing captured. There is at least one object, whose width or height " +
+                                    "in pixels is smaller than " + minimalDetectionSize + ". Please ensure the sizes of all visible detectables is sufficient.</color>");
 
             }
             // file already exits => player didn't wait ar least
@@ -466,13 +507,15 @@ class CascadeClassifierData {
 class RunData {
 
     public string runId;
+    public string version;
     public DetectableData cubes;
     public DetectableData balls;
     //public List<DetectableData> tetraeders;
 
-    public RunData(string runId) {
+    public RunData(string runId, string version) {
 
         this.runId = runId;
+        this.version = version;
         this.cubes = new DetectableData(); // for cubes
         this.balls = new DetectableData(); // for balls
         //this.tetraeders.Add(new DetectableData()); // for tetraeders
@@ -563,11 +606,11 @@ class NegativeElement {
 [System.Serializable]
 class NegativesData {
 
-    public string negPaths;
+    public string path;
 
     public NegativesData(string path) {
 
-        this.negPaths = path;
+        this.path = path;
 
     }
 
