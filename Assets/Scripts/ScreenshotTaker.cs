@@ -15,6 +15,7 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private GameObject cubePrefab = null;
     [SerializeField] private GameObject detectablesParent = null;
     [SerializeField] private int minimalDetectionSize = 0;
+    [SerializeField] private int paddingPerSide = 0;
     private string trainingDataPath;
     private string yoloDataPath;
     private string cascadeClassifierDataPath;
@@ -301,7 +302,7 @@ public class ScreenshotTaker: MonoBehaviour {
                                 // gather corresponding data
 
                                 // for yolo
-                                BoxData boxData = new BoxData(classId,
+                                BoxData boxData = new BoxData(  classId,
                                                                 Mathf.RoundToInt(left),
                                                                 Mathf.RoundToInt(Screen.height - top),
                                                                 width,
@@ -309,12 +310,18 @@ public class ScreenshotTaker: MonoBehaviour {
                                 boxDataList.Add(boxData);
 
                                 // add to positives
-                                positiveElements.Add(new PositiveElement(classId,
+                                int cascadeLeft = Mathf.RoundToInt(left) - paddingPerSide;
+                                if(cascadeLeft < 0) cascadeLeft = 0;
+                                int cascadeTop = Mathf.RoundToInt(Screen.height - top) - paddingPerSide;
+                                if(cascadeTop < 0) cascadeTop = 0; 
+                                int cascadeWidth = Mathf.RoundToInt(width) + 2 * paddingPerSide;
+                                if(cascadeLeft + cascadeWidth > Screen.width) cascadeWidth = Screen.width - cascadeLeft;
+                                int cascadeHeight = Mathf.RoundToInt(height) + 2 * paddingPerSide;
+                                if(cascadeTop + cascadeHeight > Screen.height) cascadeHeight = Screen.height - cascadeTop;
+
+                                positiveElements.Add(new PositiveElement(   classId,
                                                                             "positives\\" + timestmp + randomNumber + ".png",
-                                                                            new BBox(Mathf.RoundToInt(left),
-                                                                                        Mathf.RoundToInt(Screen.height - top),
-                                                                                        Mathf.RoundToInt(width),
-                                                                                        Mathf.RoundToInt(height))));
+                                                                            new BBox(cascadeLeft, cascadeTop, cascadeWidth, cascadeHeight)));
 
                             }
                             else allSizesSufficient = false;
