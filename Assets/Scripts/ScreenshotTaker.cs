@@ -16,6 +16,7 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private GameObject detectablesParent = null;
     [SerializeField] private int minimalDetectionSize = 0;
     [SerializeField] private int paddingPerSide = 0;
+    [SerializeField] private ConfigTransporter confTrans = null;
     private string trainingDataPath;
     private string yoloDataPath;
     private string cascadeClassifierDataPath;
@@ -34,6 +35,12 @@ public class ScreenshotTaker: MonoBehaviour {
     // Start is called before the first frame update
     void Start()
     {
+        
+        try {
+            confTrans = GameObject.Find("ConfigTransporter").GetComponent<ConfigTransporter>();
+        } catch(Exception ex) {
+            Debug.Log(ex);
+        }
 
         Cursor.visible = false;
         allowCapturing = true;
@@ -75,17 +82,30 @@ public class ScreenshotTaker: MonoBehaviour {
             else if(i % 2 == 1) chosenGameObject = ballPrefab;
             //else if(i % 2 == 2) chosenGameObject = tetraederPrefab; // add new detectable class
             else {
-
                 Debug.LogError("Game tried to instantiate a detectable, whose type could not be infered.");
                 throw new Exception("Game tried to instantiate a detectable, whose type could not be infered.");
-
             }
+
             GameObject detectable = Instantiate(    chosenGameObject,
                                                     randomPosition,
                                                     Quaternion.Euler(   UnityEngine.Random.Range(0f, 180f),
                                                                         UnityEngine.Random.Range(0f, 180f),
                                                                         UnityEngine.Random.Range(0f, 180f)),
                                                     detectablesParent.transform);
+
+            try {
+                if(confTrans.RandomizeColors) {
+                    
+                    Color newColor = new Color( UnityEngine.Random.Range(0f, 1f),
+                                                UnityEngine.Random.Range(0f, 1f),
+                                                UnityEngine.Random.Range(0f, 1f));
+
+                    detectable.GetComponent<MeshRenderer>().material.SetColor("_Color", newColor);
+
+                }
+            } catch(Exception ex) {
+                Debug.Log(ex);
+            }
             
             detectables.Add(detectable);
 
@@ -105,8 +125,9 @@ public class ScreenshotTaker: MonoBehaviour {
 
         // add new RunData entry
         runId = string.Format("{0}_{1}", Environment.UserName.GetHashCode(), UnityEngine.Random.Range(0, 10000));
+        bool colorIsRandomized = confTrans.RandomizeColor;
         string version = Application.version;
-        runData = new RunData(runId, version);
+        runData = new RunData(runId, colorIsRandomized, version);
         cascadeClassifierData.runData.Add(runData);
 
     }
@@ -514,14 +535,16 @@ class CascadeClassifierData {
 class RunData {
 
     public string runId;
+    public bool colorIsRandomized;
     public string version;
     public DetectableData cubes;
     public DetectableData balls;
     //public List<DetectableData> tetraeders;
 
-    public RunData(string runId, string version) {
+    public RunData(string runId, bool colorIsRandomized, string version) {
 
         this.runId = runId;
+        this.colorIsRandomized = colorIsRandomized;
         this.version = version;
         this.cubes = new DetectableData(); // for cubes
         this.balls = new DetectableData(); // for balls

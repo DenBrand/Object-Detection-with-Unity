@@ -6,19 +6,10 @@ using UnityEngine.SceneManagement;
 public class ConfigTransporter : MonoBehaviour
 {
     public static ConfigTransporter instance;
-    private bool randomizeColors;
-    private bool varyLighting;
-    private bool addNoise;
-    private bool smoothImages;
-
-    private void Start() {
-
-        randomizeColors = false;
-        varyLighting = false;
-        addNoise = false;
-        smoothImages = false;
-
-    }
+    public bool RandomizeColors { get; set; }
+    public bool VaryLighting { get; set; }
+    public bool AddNoise { get; set; }
+    public bool SmoothImages { get; set; }
 
     private void Awake() {
         if(instance == null) instance = this;
