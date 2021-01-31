@@ -125,7 +125,7 @@ public class ScreenshotTaker: MonoBehaviour {
 
         // add new RunData entry
         runId = string.Format("{0}_{1}", Environment.UserName.GetHashCode(), UnityEngine.Random.Range(0, 10000));
-        bool colorIsRandomized = confTrans.RandomizeColor;
+        bool colorIsRandomized = confTrans.RandomizeColors;
         string version = Application.version;
         runData = new RunData(runId, colorIsRandomized, version);
         cascadeClassifierData.runData.Add(runData);
