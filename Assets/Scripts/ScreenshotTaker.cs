@@ -16,7 +16,7 @@ public class ScreenshotTaker: MonoBehaviour {
     [SerializeField] private GameObject detectablesParent = null;
     [SerializeField] private int minimalDetectionSize = 0;
     [SerializeField] private int paddingPerSide = 0;
-    [SerializeField] private ConfigTransporter confTrans = null;
+    [SerializeField] private ConfigTransporter configTransporter = null;
     private string trainingDataPath;
     private string yoloDataPath;
     private string cascadeClassifierDataPath;
@@ -35,11 +35,10 @@ public class ScreenshotTaker: MonoBehaviour {
     // Start is called before the first frame update
     void Start()
     {
-        
         try {
-            confTrans = GameObject.Find("ConfigTransporter").GetComponent<ConfigTransporter>();
+            configTransporter = GameObject.Find("ConfigTransporter").GetComponent<ConfigTransporter>();
         } catch(Exception ex) {
-            Debug.Log(ex);
+            Debug.LogError(ex);
         }
 
         Cursor.visible = false;
@@ -71,9 +70,8 @@ public class ScreenshotTaker: MonoBehaviour {
         sendMessage("Training data are saved in \"" + trainingDataPath + "\".");
         sendMessage("<color=green>STARTING CAPTURING SESSION</color>");
 
-        // instatiate 30 detectables at random positions all over the map
+        // instatiate detectables at random positions all over the map
         for(int i = 0; i < detecableCount; i++) {
-
 
             // gernerate randomly chosen detectables
             Vector3 randomPosition = new Vector3(UnityEngine.Random.Range(-100f, 100f), 10f, UnityEngine.Random.Range(-100f, 100f));
@@ -83,7 +81,7 @@ public class ScreenshotTaker: MonoBehaviour {
             //else if(i % 2 == 2) chosenGameObject = tetraederPrefab; // add new detectable class
             else {
                 Debug.LogError("Game tried to instantiate a detectable, whose type could not be infered.");
-                throw new Exception("Game tried to instantiate a detectable, whose type could not be infered.");
+                throw new ArgumentNullException("Game tried to instantiate a detectable, whose type could not be infered.");
             }
 
             GameObject detectable = Instantiate(    chosenGameObject,
@@ -94,21 +92,18 @@ public class ScreenshotTaker: MonoBehaviour {
                                                     detectablesParent.transform);
 
             try {
-                if(confTrans.RandomizeColors) {
-                    
+                if(configTransporter.currentMode.ModeName == "RANDOMIZE_DETECTABLE_COLORS") {
                     Color newColor = new Color( UnityEngine.Random.Range(0f, 1f),
                                                 UnityEngine.Random.Range(0f, 1f),
                                                 UnityEngine.Random.Range(0f, 1f));
 
                     detectable.GetComponent<MeshRenderer>().material.SetColor("_Color", newColor);
-
                 }
             } catch(Exception ex) {
                 Debug.Log(ex);
             }
-            
-            detectables.Add(detectable);
 
+            detectables.Add(detectable);
         }
 
         // Load cascade classifier data already existent
@@ -125,61 +120,48 @@ public class ScreenshotTaker: MonoBehaviour {
 
         // add new RunData entry
         runId = string.Format("{0}_{1}", Environment.UserName.GetHashCode(), UnityEngine.Random.Range(0, 10000));
-        bool colorIsRandomized = confTrans.RandomizeColors;
         string version = Application.version;
-        runData = new RunData(runId, colorIsRandomized, version);
+        runData = new RunData(runId, configTransporter.currentMode.ModeName, version);
         cascadeClassifierData.runData.Add(runData);
-
     }
 
     // Update is called once per frame
     void Update()
     {
-
         if(player.transform.position.y <= deathHeight) {
-
             sendMessage("<color=red>You fell out of bounds. I reset you to the spawn location.</color>");
             player.transform.position = Vector3.zero;
-
         }
 
         if(Input.GetKeyDown(KeyCode.Escape)) Application.Quit();
 
         if(Input.GetKeyDown(KeyCode.E)) {
             if(allowCapturing) {
-
                 allowCapturing = false;
 
                 // start coroutine so hide UI for the frame the screen is captured
                 StartCoroutine(CaptureObjects());
 
                 StartCoroutine(AllowCapturingAfterOneSecond(1.1f));
-
             } else {
-
                 sendMessage("<color=red>Nothing captured. Please wait at least one second. That's because the " +
                             "images are named with a timestamp messured in seconds. Multiple captures " +
                             "within the same second would lead to overwritten images and faulty labels.</color>");
-
             }
         }
 
         if(Input.GetKeyDown(KeyCode.H)) UICanvas.enabled = !UICanvas.enabled;
 
         if(Input.GetKeyDown(KeyCode.P)) {
-
             allowEmptyCaptures = !allowEmptyCaptures;
             if(allowEmptyCaptures) sendMessage("Capturing empty images is toggled <color=green>ON</color>");
             else sendMessage("Capturing empty images is toggled <color=red>OFF</color>.");
-
         }
 
         // extra mechanism to prevent overwriting images
         IEnumerator AllowCapturingAfterOneSecond(float n) {
-
             yield return new WaitForSecondsRealtime(n);
             allowCapturing = true;
-
         }
 
         IEnumerator CaptureObjects() {
@@ -415,8 +397,10 @@ public class ScreenshotTaker: MonoBehaviour {
                         File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + ".png", screenshotAsPNG);
 
                         // save labeled image
-                        screenshotAsPNG = screenshot.EncodeToPNG();
-                        File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + "_labeled.png", screenshotAsPNG);
+                        if(configTransporter.saveLabeledImages) {
+                            screenshotAsPNG = screenshot.EncodeToPNG();
+                            File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + "_labeled.png", screenshotAsPNG);
+                        }
 
                         // save json data
                         /* string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
@@ -535,16 +519,16 @@ class CascadeClassifierData {
 class RunData {
 
     public string runId;
-    public bool colorIsRandomized;
+    public string mode;
     public string version;
     public DetectableData cubes;
     public DetectableData balls;
     //public List<DetectableData> tetraeders;
 
-    public RunData(string runId, bool colorIsRandomized, string version) {
+    public RunData(string runId, string mode, string version) {
 
         this.runId = runId;
-        this.colorIsRandomized = colorIsRandomized;
+        this.mode = mode;
         this.version = version;
         this.cubes = new DetectableData(); // for cubes
         this.balls = new DetectableData(); // for balls

@@ -3,7 +3,7 @@
 public class Zoom : MonoBehaviour
 {
     public float sensitivity = 1;
-    Camera camera;
+    new Camera camera;
     [HideInInspector]
     public float defaultFOV;
     [Tooltip("Effectively the min FOV that we can reach while zooming with this camera.")]

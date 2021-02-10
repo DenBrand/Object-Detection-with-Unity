@@ -4,7 +4,7 @@ public class Jump : MonoBehaviour
 {
     [SerializeField]
     GroundCheck groundCheck;
-    Rigidbody rigidbody;
+    new Rigidbody rigidbody;
     public float jumpStrength = 2;
     public event System.Action Jumped;
 
