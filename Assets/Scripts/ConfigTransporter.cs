@@ -50,7 +50,6 @@ public class ConfigTransporter : MonoBehaviour
         modeDescriptionText.text = currentMode.Description;
     }
 
-    public void LoadMainScene() {
-        SceneManager.LoadScene(1);
-    }
+    public void LoadMainScene() { SceneManager.LoadScene(1); }
+    public void LoadTitleScene() { SceneManager.LoadScene(0); }
 }
