@@ -28,5 +28,5 @@ MonoBehaviour:
 
     - no object morphing
 
-    Suitable to test if you
-    can train at all.'
+    Suitable for experiments
+    with <color=cyan>post-processing</color> adjustments only.'

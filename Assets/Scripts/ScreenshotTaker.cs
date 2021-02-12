@@ -7,30 +7,30 @@ using System;
 
 public class ScreenshotTaker: MonoBehaviour {
 
-    [SerializeField] private Camera playerCamera = null;
-    [SerializeField] private Canvas UICanvas = null;
-    [SerializeField] private List<GameObject> detectables = null;
-    [SerializeField] private int detecableCount = 0;
-    [SerializeField] private GameObject ballPrefab = null;
-    [SerializeField] private GameObject cubePrefab = null;
-    [SerializeField] private GameObject detectablesParent = null;
-    [SerializeField] private int minimalDetectionSize = 0;
-    [SerializeField] private int paddingPerSide = 0;
-    [SerializeField] private ConfigTransporter configTransporter = null;
-    private string trainingDataPath;
-    private string yoloDataPath;
-    private string cascadeClassifierDataPath;
-    private string cascadeClassifierDataJSONPath;
+    [SerializeField] Camera playerCamera = null;
+    [SerializeField] Canvas UICanvas = null;
+    [SerializeField] List<GameObject> detectables = null;
+    [SerializeField] int detecableCount = 0;
+    [SerializeField] GameObject ballPrefab = null;
+    [SerializeField] GameObject cubePrefab = null;
+    [SerializeField] GameObject detectablesParent = null;
+    [SerializeField] int minimalDetectionSize = 0;
+    [SerializeField] int paddingPerSide = 0;
+    [SerializeField] ConfigTransporter configTransporter = null;
+    string trainingDataPath;
+    string yoloDataPath;
+    string cascadeClassifierDataPath;
+    string cascadeClassifierDataJSONPath;
     public int maxMessages;
     [SerializeField] List<Message> messageList = new List<Message>();
     public GameObject contentObject, textObject;
     public float deathHeight;
     public GameObject player;
-    private bool allowCapturing;
-    private bool allowEmptyCaptures;
-    private CascadeClassifierData cascadeClassifierData;
-    private string runId;
-    private RunData runData;
+    bool allowCapturing;
+    bool allowEmptyCaptures;
+    CascadeClassifierData cascadeClassifierData;
+    string runId;
+    RunData runData;
     
     // Start is called before the first frame update
     void Start()
@@ -434,7 +434,7 @@ public class ScreenshotTaker: MonoBehaviour {
                                     "in pixels is smaller than " + minimalDetectionSize + ". Please ensure the sizes of all visible detectables is sufficient.</color>");
 
             }
-            // file already exits => player didn't wait ar least
+            // file already exits => player didn't wait at least
             // one seconds AND randomly generated number was the same
             else sendMessage("<color=red>Nothing captured. Please wait at least one second. That's because the " +
                               "screenshots are named with a timestamp messured in seconds. Multiple screenshots " + 
@@ -443,12 +443,9 @@ public class ScreenshotTaker: MonoBehaviour {
     }
 
     public void sendMessage(string text) {
-
         if(messageList.Count >= maxMessages) {
-
             Destroy(messageList[0].textObject.gameObject);
             messageList.Remove(messageList[0]);
-
         }
 
         Message newMessage = new Message();
@@ -457,33 +454,26 @@ public class ScreenshotTaker: MonoBehaviour {
         newMessage.textObject = newText.GetComponent<Text>();
         newMessage.textObject.text = newMessage.text;
         messageList.Add(newMessage);
-
     }
 }
 
 [System.Serializable]
 public class Message {
-
     public string text;
     public Text textObject;
-
 }
 
-[System.Serializable]
+/*[System.Serializable]
 class BoxDataList {
-
     public List<BoxData> data;
 
     public BoxDataList(List<BoxData> data) {
-
         this.data = data;
-
     }
 }
 
 [System.Serializable]
 class BoxData {
-
     public int id;
     public float x;
     public float y;
@@ -491,7 +481,6 @@ class BoxData {
     public float h;
 
     public BoxData(int objId, float posX, float posY, float width, float height) {
-        
         this.id = objId;
         this.x = posX;
         this.y = posY;
@@ -503,21 +492,15 @@ class BoxData {
 // Neccessary classes for cascading classifier data
 [System.Serializable]
 class CascadeClassifierData {
-
-
     public List<RunData> runData;
 
     public CascadeClassifierData() {
-
         this.runData = new List<RunData>();
-
     }
-
 }
 
 [System.Serializable]
 class RunData {
-
     public string runId;
     public string mode;
     public string version;
@@ -526,106 +509,79 @@ class RunData {
     //public List<DetectableData> tetraeders;
 
     public RunData(string runId, string mode, string version) {
-
         this.runId = runId;
         this.mode = mode;
         this.version = version;
         this.cubes = new DetectableData(); // for cubes
         this.balls = new DetectableData(); // for balls
         //this.tetraeders.Add(new DetectableData()); // for tetraeders
-
     }
-
 }
 
 [System.Serializable]
 class DetectableData {
-
     public List<PositivesData> positives;
     public List<NegativesData> negatives;
 
     public DetectableData() {
-
         this.positives = new List<PositivesData>();
         this.negatives = new List<NegativesData>();
-
     }
-
 }
 
 [System.Serializable]
 class PositivesData {
-
     public string path;
     public BBox boxEntry;
 
     public PositivesData(string path, BBox bbox) {
-
         this.path = path;
         this.boxEntry = bbox;
-
     }
-
 }
 
 [System.Serializable]
 class BBox {
-
     public int x;
     public int y;
     public int w;
     public int h;
 
     public BBox(int x, int y, int w, int h) {
-
         this.x = x;
         this.y = y;
         this.w = w;
         this.h = h;
-
     }
-
 }
 
 class PositiveElement {
-
     public int classId;
     public string path;
     public BBox bbox;
 
     public PositiveElement(int classId, string path, BBox bbox) {
-
         this.classId = classId;
         this.path = path;
         this.bbox = bbox;
-
     }
-
 }
 
 class NegativeElement {
-
     public int classId;
     public string path;
 
     public NegativeElement(int classId, string path) {
-
         this.classId = classId;
         this.path = path;
-
     }
-
 }
 
 [System.Serializable]
 class NegativesData {
-
     public string path;
 
     public NegativesData(string path) {
-
         this.path = path;
-
     }
-
-}
+}*/

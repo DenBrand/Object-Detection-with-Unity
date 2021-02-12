@@ -84448,6 +84448,7 @@ GameObject:
   m_Component:
   - component: {fileID: 216591893}
   - component: {fileID: 216591892}
+  - component: {fileID: 216591894}
   m_Layer: 0
   m_Name: ScreenshotTaker
   m_TagString: Untagged
@@ -84462,7 +84463,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 216591891}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1e1faee7ab2bc604591d89ece64e52f2, type: 3}
   m_Name: 
@@ -84478,7 +84479,7 @@ MonoBehaviour:
   detectablesParent: {fileID: 1272172468}
   minimalDetectionSize: 30
   paddingPerSide: 3
-  confTrans: {fileID: 0}
+  configTransporter: {fileID: 0}
   maxMessages: 10
   messageList: []
   contentObject: {fileID: 1075683652}
@@ -84500,6 +84501,34 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &216591894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 216591891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6129bf5e72ab3ba39981bc0f872aeaa0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  UICanvas: {fileID: 1295764289}
+  playerCamera: {fileID: 68374348}
+  numberOfDetectables: 50
+  minimalSize: 30
+  paddingForCascadeClassifier: 3
+  detectablesParent: {fileID: 1272172468}
+  detectablesPrefabs:
+  - {fileID: 6243476448756046693, guid: fc79fe866df04b14e961d81cd6a8cac4, type: 3}
+  - {fileID: 8828635394722551697, guid: 77ca67b70a9c1b84982f200211fba5c0, type: 3}
+  configTransporter: {fileID: 0}
+  maxMessages: 10
+  deathHeight: -30
+  player: {fileID: 1397606402}
+  contentObject: {fileID: 1075683652}
+  textObject: {fileID: 6701630918165160064, guid: b427a1609bca8b943b114ff93086c5f0,
+    type: 3}
 --- !u!43 &475193240
 Mesh:
   m_ObjectHideFlags: 0
