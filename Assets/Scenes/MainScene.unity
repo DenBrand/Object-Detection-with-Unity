@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657874, g: 0.49641258, b: 0.57481724, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657874, g: 0.49641258, b: 0.5748172, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -84447,7 +84447,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 216591893}
-  - component: {fileID: 216591892}
   - component: {fileID: 216591894}
   m_Layer: 0
   m_Name: ScreenshotTaker
@@ -84456,37 +84455,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &216591892
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 216591891}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e1faee7ab2bc604591d89ece64e52f2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerCamera: {fileID: 68374348}
-  UICanvas: {fileID: 1295764289}
-  detectables: []
-  detecableCount: 50
-  ballPrefab: {fileID: 8828635394722551697, guid: 77ca67b70a9c1b84982f200211fba5c0,
-    type: 3}
-  cubePrefab: {fileID: 6243476448756046693, guid: fc79fe866df04b14e961d81cd6a8cac4,
-    type: 3}
-  detectablesParent: {fileID: 1272172468}
-  minimalDetectionSize: 30
-  paddingPerSide: 3
-  configTransporter: {fileID: 0}
-  maxMessages: 10
-  messageList: []
-  contentObject: {fileID: 1075683652}
-  textObject: {fileID: 6701630918165160064, guid: b427a1609bca8b943b114ff93086c5f0,
-    type: 3}
-  deathHeight: -30
-  player: {fileID: 1397606402}
 --- !u!4 &216591893
 Transform:
   m_ObjectHideFlags: 0
@@ -84515,14 +84483,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UICanvas: {fileID: 1295764289}
   playerCamera: {fileID: 68374348}
-  numberOfDetectables: 50
+  numberOfDetectables: 75
   minimalSize: 30
   paddingForCascadeClassifier: 3
   detectablesParent: {fileID: 1272172468}
   detectablesPrefabs:
   - {fileID: 6243476448756046693, guid: fc79fe866df04b14e961d81cd6a8cac4, type: 3}
   - {fileID: 8828635394722551697, guid: 77ca67b70a9c1b84982f200211fba5c0, type: 3}
-  configTransporter: {fileID: 0}
   maxMessages: 10
   deathHeight: -30
   player: {fileID: 1397606402}
@@ -84535,7 +84502,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: pb_Mesh15170
+  m_Name: pb_Mesh20306
   serializedVersion: 10
   m_SubMeshes:
   - serializedVersion: 2
@@ -84794,8 +84761,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 300, y: 221.9065}
+  m_AnchoredPosition: {x: 0, y: -24.549}
+  m_SizeDelta: {x: 444.01428, y: 377.67206}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &530201561
 MonoBehaviour:
@@ -84992,8 +84959,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -0.000030517578}
+  m_SizeDelta: {x: 0, y: -0.0446167}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &885202073
 MonoBehaviour:
@@ -85081,7 +85048,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 300, y: 18.786224}
+  m_SizeDelta: {x: 444.01428, y: 24.548958}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &886101058
 MonoBehaviour:
@@ -85190,15 +85157,25 @@ PrefabInstance:
       propertyPath: m_ReceiveShadows
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 114497868231759342, guid: 11aaea5348574644a9eb4f4504fcce3f,
+        type: 3}
+      propertyPath: jumpStrength
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 114657890492222300, guid: 11aaea5348574644a9eb4f4504fcce3f,
         type: 3}
       propertyPath: fixVerticalViewAngle
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 114657890492222300, guid: 11aaea5348574644a9eb4f4504fcce3f,
+        type: 3}
+      propertyPath: sensitivity
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 114963311885979670, guid: 11aaea5348574644a9eb4f4504fcce3f,
         type: 3}
       propertyPath: speed
-      value: 8
+      value: 9
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 11aaea5348574644a9eb4f4504fcce3f, type: 3}
@@ -85342,8 +85319,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 150, y: 7.999999}
-  m_SizeDelta: {x: 282.94763, y: 15.527504}
+  m_AnchoredPosition: {x: 222.01, y: 12.393}
+  m_SizeDelta: {x: 429.63855, y: 24.312294}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1290291002
 MonoBehaviour:

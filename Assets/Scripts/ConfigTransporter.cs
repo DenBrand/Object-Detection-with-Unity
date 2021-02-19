@@ -36,6 +36,12 @@ public class ConfigTransporter : MonoBehaviour
         modeDescriptionText.text = currentMode.Description;
     }
 
+    private void Update() {
+        if(Input.GetKeyDown(KeyCode.Escape)) {
+            Application.Quit();
+        }
+    }
+
     public void NextMode() {
         if(currentMode == modes[modes.Count - 1]) {
             currentMode = modes[0];

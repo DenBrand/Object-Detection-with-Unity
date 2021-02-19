@@ -1,587 +1,588 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using System.IO;
-using System;
-
-public class ScreenshotTaker: MonoBehaviour {
-
-    [SerializeField] Camera playerCamera = null;
-    [SerializeField] Canvas UICanvas = null;
-    [SerializeField] List<GameObject> detectables = null;
-    [SerializeField] int detecableCount = 0;
-    [SerializeField] GameObject ballPrefab = null;
-    [SerializeField] GameObject cubePrefab = null;
-    [SerializeField] GameObject detectablesParent = null;
-    [SerializeField] int minimalDetectionSize = 0;
-    [SerializeField] int paddingPerSide = 0;
-    [SerializeField] ConfigTransporter configTransporter = null;
-    string trainingDataPath;
-    string yoloDataPath;
-    string cascadeClassifierDataPath;
-    string cascadeClassifierDataJSONPath;
-    public int maxMessages;
-    [SerializeField] List<Message> messageList = new List<Message>();
-    public GameObject contentObject, textObject;
-    public float deathHeight;
-    public GameObject player;
-    bool allowCapturing;
-    bool allowEmptyCaptures;
-    CascadeClassifierData cascadeClassifierData;
-    string runId;
-    RunData runData;
-    
-    // Start is called before the first frame update
-    void Start()
-    {
-        try {
-            configTransporter = GameObject.Find("ConfigTransporter").GetComponent<ConfigTransporter>();
-        } catch(Exception ex) {
-            Debug.LogError(ex);
-        }
-
-        Cursor.visible = false;
-        allowCapturing = true;
-        allowEmptyCaptures = true;
-
-        // specify certain paths
-        if(SystemInfo.operatingSystem.StartsWith("Windows")) {
-            trainingDataPath = "training_data\\";
-            yoloDataPath = trainingDataPath + "yolo\\";
-            cascadeClassifierDataPath = trainingDataPath + "cascade_classifier\\";
-            cascadeClassifierDataJSONPath = cascadeClassifierDataPath + "training_data.json";
-        }
-        else {
-            trainingDataPath = "training_data/";
-            yoloDataPath = trainingDataPath + "yolo/";
-            cascadeClassifierDataPath = trainingDataPath + "cascade_classifier/";
-            cascadeClassifierDataJSONPath = cascadeClassifierDataPath + "training_data.json";
-        }
-
-        sendMessage("Move: WASD");
-        sendMessage("Look: Mouse");
-        sendMessage("Capture: E");
-        sendMessage("Zoom: Scroll Mouse Wheel");
-        sendMessage("Hide Info Box: H");
-        sendMessage("Toggle capture empty images: P (default: <color=green>ON</color>)");
-        sendMessage("Close Application: ESC");
-        sendMessage("<color=red>Wait at least one second between captures.</color>");
-        sendMessage("Training data are saved in \"" + trainingDataPath + "\".");
-        sendMessage("<color=green>STARTING CAPTURING SESSION</color>");
-
-        // instatiate detectables at random positions all over the map
-        for(int i = 0; i < detecableCount; i++) {
-
-            // gernerate randomly chosen detectables
-            Vector3 randomPosition = new Vector3(UnityEngine.Random.Range(-100f, 100f), 10f, UnityEngine.Random.Range(-100f, 100f));
-            GameObject chosenGameObject = null;
-            if(i % 2 == 0) chosenGameObject = cubePrefab;
-            else if(i % 2 == 1) chosenGameObject = ballPrefab;
-            //else if(i % 2 == 2) chosenGameObject = tetraederPrefab; // add new detectable class
-            else {
-                Debug.LogError("Game tried to instantiate a detectable, whose type could not be infered.");
-                throw new ArgumentNullException("Game tried to instantiate a detectable, whose type could not be infered.");
-            }
-
-            GameObject detectable = Instantiate(    chosenGameObject,
-                                                    randomPosition,
-                                                    Quaternion.Euler(   UnityEngine.Random.Range(0f, 180f),
-                                                                        UnityEngine.Random.Range(0f, 180f),
-                                                                        UnityEngine.Random.Range(0f, 180f)),
-                                                    detectablesParent.transform);
-
-            try {
-                if(configTransporter.currentMode.ModeName == "RANDOMIZE_DETECTABLE_COLORS") {
-                    Color newColor = new Color( UnityEngine.Random.Range(0f, 1f),
-                                                UnityEngine.Random.Range(0f, 1f),
-                                                UnityEngine.Random.Range(0f, 1f));
-
-                    detectable.GetComponent<MeshRenderer>().material.SetColor("_Color", newColor);
-                }
-            } catch(Exception ex) {
-                Debug.Log(ex);
-            }
-
-            detectables.Add(detectable);
-        }
-
-        // Load cascade classifier data already existent
-        if(!Directory.Exists(cascadeClassifierDataPath)) {
-            Directory.CreateDirectory(cascadeClassifierDataPath);
-        }
-        if(File.Exists(cascadeClassifierDataJSONPath)) {
-            string jsonString = File.ReadAllText(cascadeClassifierDataJSONPath);
-            cascadeClassifierData = JsonUtility.FromJson<CascadeClassifierData>(jsonString);
-        }
-        else {
-            cascadeClassifierData = new CascadeClassifierData();
-        }
-
-        // add new RunData entry
-        runId = string.Format("{0}_{1}", Environment.UserName.GetHashCode(), UnityEngine.Random.Range(0, 10000));
-        string version = Application.version;
-        runData = new RunData(runId, configTransporter.currentMode.ModeName, version);
-        cascadeClassifierData.runData.Add(runData);
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if(player.transform.position.y <= deathHeight) {
-            sendMessage("<color=red>You fell out of bounds. I reset you to the spawn location.</color>");
-            player.transform.position = Vector3.zero;
-        }
-
-        if(Input.GetKeyDown(KeyCode.Escape)) Application.Quit();
-
-        if(Input.GetKeyDown(KeyCode.E)) {
-            if(allowCapturing) {
-                allowCapturing = false;
-
-                // start coroutine so hide UI for the frame the screen is captured
-                StartCoroutine(CaptureObjects());
-
-                StartCoroutine(AllowCapturingAfterOneSecond(1.1f));
-            } else {
-                sendMessage("<color=red>Nothing captured. Please wait at least one second. That's because the " +
-                            "images are named with a timestamp messured in seconds. Multiple captures " +
-                            "within the same second would lead to overwritten images and faulty labels.</color>");
-            }
-        }
-
-        if(Input.GetKeyDown(KeyCode.H)) UICanvas.enabled = !UICanvas.enabled;
-
-        if(Input.GetKeyDown(KeyCode.P)) {
-            allowEmptyCaptures = !allowEmptyCaptures;
-            if(allowEmptyCaptures) sendMessage("Capturing empty images is toggled <color=green>ON</color>");
-            else sendMessage("Capturing empty images is toggled <color=red>OFF</color>.");
-        }
-
-        // extra mechanism to prevent overwriting images
-        IEnumerator AllowCapturingAfterOneSecond(float n) {
-            yield return new WaitForSecondsRealtime(n);
-            allowCapturing = true;
-        }
-
-        IEnumerator CaptureObjects() {
-
-            // get time stamp as file name
-            System.DateTime time = System.DateTime.Now;
-            string timestmp = time.Year + "-"
-                            + time.Month + "-"
-                            + time.Day + "_"
-                            + time.Hour + "h"
-                            + time.Minute + "min"
-                            + time.Second + "sec";
-
-            int randomNumber = UnityEngine.Random.Range(0, 10000);
-
-            if(!File.Exists(trainingDataPath + timestmp + randomNumber + ".png")) {
-
-                sendMessage("*SNAP*");
-
-                // wait till the last possible moment before screen rendering to hide UI
-                bool canvasWasEnabled = UICanvas.enabled;
-                yield return null;
-                UICanvas.enabled = false;
-
-                // wait for screen rendering to complete
-                yield return new WaitForEndOfFrame();
-                if(canvasWasEnabled) UICanvas.enabled = true;
-
-                // take screenshot
-                Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
-                byte[] screenshotAsPNG = screenshot.EncodeToPNG();
-
-                bool allSizesSufficient = true;
-                List<BoxData> boxDataList = new List<BoxData>();
-                List<PositiveElement> positiveElements = new List<PositiveElement>();
-                foreach(GameObject detectable in detectables) {
-
-                    Renderer renderer = detectable.GetComponent<Renderer>();
-
-                    // get boundary box
-                    if(renderer.isVisible) {
-
-                        // get an array of all vertices of the object
-                        Mesh mesh = detectable.GetComponent<MeshFilter>().mesh;
-                        Vector3[] vertices = mesh.vertices;
-
-                        // since vertices are given relative to their gameobject, we need to convert them into worldSpace
-                        for(int i = 0; i < vertices.Length; i++) {
-
-                            vertices[i] = detectable.transform.TransformPoint(vertices[i]);
-
-                        }
-
-                        float left = Screen.width + 1f;
-                        float right = -1f;
-                        float top = -1f;
-                        float bottom = Screen.height + 1f;
-
-                        // with camera.WorldToScreenPoint(Vector3 worldPoint) search for the top, bottom, most left and most right point
-                        bool objectInSight = false;
-                        foreach(Vector3 vertex in vertices) {
-
-                            // check if vertex is NOT BEHIND the camera
-                            if(Vector3.Dot(playerCamera.transform.forward, vertex - playerCamera.transform.position) >= 0f) {
-
-                                // check if corresponding screen point is on screen and if it is a newly found border point candidate
-                                Vector3 screenPoint = playerCamera.WorldToScreenPoint(vertex);
-                                if(new Rect(0, 0, Screen.width, Screen.height).Contains(screenPoint)) {
-
-                                    // check if vertex is obscured by another object
-                                    bool vertexIsObscured = false;
-                                    RaycastHit hitInfo;
-                                    if(Physics.Raycast(playerCamera.transform.position,
-                                                        vertex - playerCamera.transform.position,
-                                                        out hitInfo,
-                                                        (vertex - playerCamera.transform.position).magnitude - 0.01f)) {
-
-                                        if(hitInfo.collider.gameObject != detectable) {
-
-                                            vertexIsObscured = true;
-
-                                        }
-                                        else {
-
-                                            objectInSight = true;
-
-                                        }
-                                    }
-
-                                    if(!vertexIsObscured) {
-
-                                        if(screenPoint.x < left) left = screenPoint.x;
-                                        if(screenPoint.x > right) right = screenPoint.x;
-                                        if(screenPoint.y < bottom) bottom = screenPoint.y;
-                                        if(screenPoint.y > top) top = screenPoint.y;
-
-                                    }
-                                }
-                            }
-                        }
-
-                        // determine object class
-                        int classId = -1;
-                        if(detectable.name.StartsWith("Cube")) classId = 0;
-                        else if(detectable.name.StartsWith("Ball")) classId = 1;
-                        // else if(detectable.name.StartsWith("Tetraeder")) classId = 2; // add new detectable class
-                        else {
-                            Debug.LogError("Couldn't infer object class");
-                            throw new System.Exception("Detected an object whose id cannot be infered.");
-                        }
-
-                        // add object to data
-                        if(objectInSight) {
-
-                            // check if object is at least 12 pixels wide and high
-                            bool tooSmall = false;
-                            float width = right - left;
-                            float height = top - bottom;
-                            bool wasDetected = left != Screen.width + 1f && right != -1f && top != -1f && bottom != Screen.height + 1f;
-                            if((Mathf.RoundToInt(width) < minimalDetectionSize || Mathf.RoundToInt(height) < minimalDetectionSize) && wasDetected)
-                                tooSmall = true;
-
-                            if(!tooSmall) {
-
-                                // represent detected objects in the info box
-                                string name = detectable.name;
-                                if(detectable.name.Contains("Cube")) name = "<color=red>" + detectable.name + "</color>";
-                                else if(detectable.name.Contains("Ball")) name = "<color=cyan>" + detectable.name + "</color>";
-                                sendMessage(name + "(id: " + detectable.GetInstanceID() + ") snapped");
-
-                                // draw the lines
-                                for(int x = (int)left; x <= (int)right; x++) {
-                                    screenshot.SetPixel(x, (int)bottom, Color.red);
-                                    screenshot.SetPixel(x, (int)top, Color.red);
-                                }
-                                for(int y = (int)bottom; y <= (int)top; y++) {
-                                    screenshot.SetPixel((int)left, y, Color.red);
-                                    screenshot.SetPixel((int)right, y, Color.red);
-                                }
-
-                                // gather corresponding data
-
-                                // for yolo
-                                BoxData boxData = new BoxData(  classId,
-                                                                Mathf.RoundToInt(left),
-                                                                Mathf.RoundToInt(Screen.height - top),
-                                                                width,
-                                                                height);
-                                boxDataList.Add(boxData);
-
-                                // add to positives
-                                int cascadeLeft = Mathf.RoundToInt(left) - paddingPerSide;
-                                if(cascadeLeft < 0) cascadeLeft = 0;
-                                int cascadeTop = Mathf.RoundToInt(Screen.height - top) - paddingPerSide;
-                                if(cascadeTop < 0) cascadeTop = 0; 
-                                int cascadeWidth = Mathf.RoundToInt(width) + 2 * paddingPerSide;
-                                if(cascadeLeft + cascadeWidth > Screen.width) cascadeWidth = Screen.width - cascadeLeft;
-                                int cascadeHeight = Mathf.RoundToInt(height) + 2 * paddingPerSide;
-                                if(cascadeTop + cascadeHeight > Screen.height) cascadeHeight = Screen.height - cascadeTop;
-
-                                positiveElements.Add(new PositiveElement(   classId,
-                                                                            "positives\\" + timestmp + randomNumber + ".png",
-                                                                            new BBox(cascadeLeft, cascadeTop, cascadeWidth, cascadeHeight)));
-
-                            }
-                            else allSizesSufficient = false;
-                        }
-                    }
-                }
-
-                if(allSizesSufficient) {
-
-                    // add cascade classifier data and for every class,
-                    // check if there is a positive element for that class.
-                    // if no: add image as negative element for that class.
-                    List<NegativeElement> negativeElements = new List<NegativeElement>();
-                    Dictionary<int, bool> classFound = new Dictionary<int, bool>();
-                    classFound.Add(0, false);
-                    classFound.Add(1, false);
-                    foreach(PositiveElement posElem in positiveElements) {
-
-                        if(posElem.classId == 0) {
-
-                            classFound[0] = true;
-                            runData.cubes.positives.Add(new PositivesData(posElem.path, posElem.bbox));
-
-                        }
-                        else if(posElem.classId == 1) {
-
-                            classFound[1] = true;
-                            runData.balls.positives.Add(new PositivesData(posElem.path, posElem.bbox));
-
-                        }
-                        /*else if(posElem.classId == 2) { // add new detectable class
-
-                            classFound[2] = true;
-                            runData.tetraeders.positives.Add(new PositivesData(posElem.path, posElem.bbox));
-
-                        }*/
-                        else {
-
-                            Debug.LogError("The script added a non-existent detectable class to the \"positiveElements\" variable. This error is fatal. Please inform Dennis about this.");
-                            throw new System.Exception("The script added a non-existent detectable class to the \"positiveElements\" variable. This error is fatal. Please inform Dennis about this.");
-
-                        }
-                    }
-
-                    // add negative elements
-                    foreach(int classId in classFound.Keys)
-                        if(!classFound[classId])
-                            if(classId == 0)
-                                runData.cubes.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));
-                            else if(classId == 1)
-                                runData.balls.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));
-                            /*else if(classId == 2) // add new detectable class
-                                runData.tetraeders.negatives.Add(new NegativesData("negatives\\" + timestmp + randomNumber + ".png"));*/
-                            else {
-
-                                Debug.LogError("The script had a non-existent detectable class in the \"classFound.Key\" field. This error is fatal. Please inform Dennis about this.");
-                                throw new System.Exception("The script had a non-existent detectable class in the \"classFound.Key\" field. This error is fatal. Please inform Dennis about this.");
-
-                            }
-
-                    // if at least one object was detected
-                    if(allowEmptyCaptures || boxDataList.Count > 0) {
-
-                        // save unlabeled image
-                        if(!Directory.Exists(yoloDataPath)) {
-
-                            Directory.CreateDirectory(yoloDataPath);
-
-                        }
-                        File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + ".png", screenshotAsPNG);
-
-                        // save labeled image
-                        if(configTransporter.saveLabeledImages) {
-                            screenshotAsPNG = screenshot.EncodeToPNG();
-                            File.WriteAllBytes(yoloDataPath + timestmp + randomNumber + "_labeled.png", screenshotAsPNG);
-                        }
-
-                        // save json data
-                        /* string jsonString = JsonUtility.ToJson(new BoxDataList(boxDataList), true);
-                        File.WriteAllText(path + timestmp + ".json", jsonString);*/
-
-                        // save txt file as yolo label
-                        foreach(BoxData boxData in boxDataList) {
-
-                            using(StreamWriter sw = File.AppendText(yoloDataPath + timestmp + randomNumber + ".txt")) {
-
-                                sw.WriteLine(boxData.id + " " +
-                                                (float)(boxData.x + boxData.w / 2) / Screen.width + " " +
-                                                (float)(boxData.y + boxData.h / 2) / Screen.height + " " +
-                                                (float)boxData.w / Screen.width + " " +
-                                                (float)boxData.h / Screen.height);
-
-                            }
-                        }
-                        if(boxDataList.Count == 0) using(StreamWriter sw = File.AppendText(yoloDataPath + timestmp + randomNumber + ".txt")) sw.Write("");
-
-                        // overwrite json for cascade classifier
-                        string jsonString = JsonUtility.ToJson(cascadeClassifierData, true);
-                        File.WriteAllText(cascadeClassifierDataJSONPath, jsonString);
-
-                    }
-                    // no object detected and capturing labels without detections is off
-                    else sendMessage("<color=red>Nothing captured. No object in sight. If you want to capture empty images too, please press the <color=blue>P</color> button</color>");
-
-                }
-                else sendMessage(   "<color=red>Nothing captured. There is at least one object, whose width or height " +
-                                    "in pixels is smaller than " + minimalDetectionSize + ". Please ensure the sizes of all visible detectables is sufficient.</color>");
-
-            }
-            // file already exits => player didn't wait at least
-            // one seconds AND randomly generated number was the same
-            else sendMessage("<color=red>Nothing captured. Please wait at least one second. That's because the " +
-                              "screenshots are named with a timestamp messured in seconds. Multiple screenshots " + 
-                              "within the same second would lead to overwritten images and faulty labels.</color>");
-        }
-    }
-
-    public void sendMessage(string text) {
-        if(messageList.Count >= maxMessages) {
-            Destroy(messageList[0].textObject.gameObject);
-            messageList.Remove(messageList[0]);
-        }
-
-        Message newMessage = new Message();
-        newMessage.text = text;
-        GameObject newText = Instantiate(textObject, contentObject.transform);
-        newMessage.textObject = newText.GetComponent<Text>();
-        newMessage.textObject.text = newMessage.text;
-        messageList.Add(newMessage);
-    }
-}
-
-[System.Serializable]
-public class Message {
-    public string text;
-    public Text textObject;
-}
-
-/*[System.Serializable]
-class BoxDataList {
-    public List<BoxData> data;
-
-    public BoxDataList(List<BoxData> data) {
-        this.data = data;
-    }
-}
-
-[System.Serializable]
-class BoxData {
-    public int id;
-    public float x;
-    public float y;
-    public float w;
-    public float h;
-
-    public BoxData(int objId, float posX, float posY, float width, float height) {
-        this.id = objId;
-        this.x = posX;
-        this.y = posY;
-        this.w = width;
-        this.h = height;
-    }
-}
-
-// Neccessary classes for cascading classifier data
-[System.Serializable]
-class CascadeClassifierData {
-    public List<RunData> runData;
-
-    public CascadeClassifierData() {
-        this.runData = new List<RunData>();
-    }
-}
-
-[System.Serializable]
-class RunData {
-    public string runId;
-    public string mode;
-    public string version;
-    public DetectableData cubes;
-    public DetectableData balls;
-    //public List<DetectableData> tetraeders;
-
-    public RunData(string runId, string mode, string version) {
-        this.runId = runId;
-        this.mode = mode;
-        this.version = version;
-        this.cubes = new DetectableData(); // for cubes
-        this.balls = new DetectableData(); // for balls
-        //this.tetraeders.Add(new DetectableData()); // for tetraeders
-    }
-}
-
-[System.Serializable]
-class DetectableData {
-    public List<PositivesData> positives;
-    public List<NegativesData> negatives;
-
-    public DetectableData() {
-        this.positives = new List<PositivesData>();
-        this.negatives = new List<NegativesData>();
-    }
-}
-
-[System.Serializable]
-class PositivesData {
-    public string path;
-    public BBox boxEntry;
-
-    public PositivesData(string path, BBox bbox) {
-        this.path = path;
-        this.boxEntry = bbox;
-    }
-}
-
-[System.Serializable]
-class BBox {
-    public int x;
-    public int y;
-    public int w;
-    public int h;
-
-    public BBox(int x, int y, int w, int h) {
-        this.x = x;
-        this.y = y;
-        this.w = w;
-        this.h = h;
-    }
-}
-
-class PositiveElement {
-    public int classId;
-    public string path;
-    public BBox bbox;
-
-    public PositiveElement(int classId, string path, BBox bbox) {
-        this.classId = classId;
-        this.path = path;
-        this.bbox = bbox;
-    }
-}
-
-class NegativeElement {
-    public int classId;
-    public string path;
-
-    public NegativeElement(int classId, string path) {
-        this.classId = classId;
-        this.path = path;
-    }
-}
-
-[System.Serializable]
-class NegativesData {
-    public string path;
-
-    public NegativesData(string path) {
-        this.path = path;
-    }
-}*/
+﻿//using system.collections;
+//using system.collections.generic;
+//using unityengine;
+//using unityengine.ui;
+//using system.io;
+//using system;
+
+//public class screenshottaker: monobehaviour {
+
+//    [serializefield] camera playercamera = null;
+//    [serializefield] canvas uicanvas = null;
+//    [serializefield] list<gameobject> detectables = null;
+//    [serializefield] int detecablecount = 0;
+//    [serializefield] gameobject ballprefab = null;
+//    [serializefield] gameobject cubeprefab = null;
+//    [serializefield] gameobject detectablesparent = null;
+//    [serializefield] int minimaldetectionsize = 0;
+//    [serializefield] int paddingperside = 0;
+//    [serializefield] configtransporter configtransporter = null;
+//    string trainingdatapath;
+//    string yolodatapath;
+//    string cascadeclassifierdatapath;
+//    string cascadeclassifierdatajsonpath;
+//    public int maxmessages;
+//    [serializefield] list<message> messagelist = new list<message>();
+//    public gameobject contentobject, textobject;
+//    public float deathheight;
+//    public gameobject player;
+//    bool allowcapturing;
+//    bool allowemptycaptures;
+//    cascadeclassifierdata cascadeclassifierdata;
+//    string runid;
+//    rundata rundata;
+
+//    // start is called before the first frame update
+//    void start() {
+//        try {
+//            configtransporter = gameobject.find("configtransporter").getcomponent<configtransporter>();
+//        }
+//        catch(exception ex) {
+//            debug.logerror(ex);
+//        }
+
+//        cursor.visible = false;
+//        allowcapturing = true;
+//        allowemptycaptures = true;
+
+//        // specify certain paths
+//        if(systeminfo.operatingsystem.startswith("windows")) {
+//            trainingdatapath = "training_data\\";
+//            yolodatapath = trainingdatapath + "yolo\\";
+//            cascadeclassifierdatapath = trainingdatapath + "cascade_classifier\\";
+//            cascadeclassifierdatajsonpath = cascadeclassifierdatapath + "training_data.json";
+//        }
+//        else {
+//            trainingdatapath = "training_data/";
+//            yolodatapath = trainingdatapath + "yolo/";
+//            cascadeclassifierdatapath = trainingdatapath + "cascade_classifier/";
+//            cascadeclassifierdatajsonpath = cascadeclassifierdatapath + "training_data.json";
+//        }
+
+//        sendmessage("move: wasd");
+//        sendmessage("look: mouse");
+//        sendmessage("capture: e");
+//        sendmessage("zoom: scroll mouse wheel");
+//        sendmessage("hide info box: h");
+//        sendmessage("toggle capture empty images: p (default: <color=green>on</color>)");
+//        sendmessage("close application: esc");
+//        sendmessage("<color=red>wait at least one second between captures.</color>");
+//        sendmessage("training data are saved in \"" + trainingdatapath + "\".");
+//        sendmessage("<color=green>starting capturing session</color>");
+
+//        // instatiate detectables at random positions all over the map
+//        for(int i = 0; i < detecablecount; i++) {
+
+//            // gernerate randomly chosen detectables
+//            vector3 randomposition = new vector3(unityengine.random.range(-100f, 100f), 10f, unityengine.random.range(-100f, 100f));
+//            gameobject chosengameobject = null;
+//            if(i % 2 == 0) chosengameobject = cubeprefab;
+//            else if(i % 2 == 1) chosengameobject = ballprefab;
+//            //else if(i % 2 == 2) chosengameobject = tetraederprefab; // add new detectable class
+//            else {
+//                debug.logerror("game tried to instantiate a detectable, whose type could not be infered.");
+//                throw new argumentnullexception("game tried to instantiate a detectable, whose type could not be infered.");
+//            }
+
+//            gameobject detectable = instantiate(chosengameobject,
+//                                                    randomposition,
+//                                                    quaternion.euler(unityengine.random.range(0f, 180f),
+//                                                                        unityengine.random.range(0f, 180f),
+//                                                                        unityengine.random.range(0f, 180f)),
+//                                                    detectablesparent.transform);
+
+//            try {
+//                if(configtransporter.currentmode.modename == "randomize_detectable_colors") {
+//                    color newcolor = new color(unityengine.random.range(0f, 1f),
+//                                                unityengine.random.range(0f, 1f),
+//                                                unityengine.random.range(0f, 1f));
+
+//                    detectable.getcomponent<meshrenderer>().material.setcolor("_color", newcolor);
+//                }
+//            }
+//            catch(exception ex) {
+//                debug.log(ex);
+//            }
+
+//            detectables.add(detectable);
+//        }
+
+//        // load cascade classifier data already existent
+//        if(!directory.exists(cascadeclassifierdatapath)) {
+//            directory.createdirectory(cascadeclassifierdatapath);
+//        }
+//        if(file.exists(cascadeclassifierdatajsonpath)) {
+//            string jsonstring = file.readalltext(cascadeclassifierdatajsonpath);
+//            cascadeclassifierdata = jsonutility.fromjson<cascadeclassifierdata>(jsonstring);
+//        }
+//        else {
+//            cascadeclassifierdata = new cascadeclassifierdata();
+//        }
+
+//        // add new rundata entry
+//        runid = string.format("{0}_{1}", environment.username.gethashcode(), unityengine.random.range(0, 10000));
+//        string version = application.version;
+//        rundata = new rundata(runid, configtransporter.currentmode.modename, version);
+//        cascadeclassifierdata.rundata.add(rundata);
+//    }
+
+//    // update is called once per frame
+//    void update() {
+//        if(player.transform.position.y <= deathheight) {
+//            sendmessage("<color=red>you fell out of bounds. i reset you to the spawn location.</color>");
+//            player.transform.position = vector3.zero;
+//        }
+
+//        if(input.getkeydown(keycode.escape)) application.quit();
+
+//        if(input.getkeydown(keycode.e)) {
+//            if(allowcapturing) {
+//                allowcapturing = false;
+
+//                // start coroutine so hide ui for the frame the screen is captured
+//                startcoroutine(captureobjects());
+
+//                startcoroutine(allowcapturingafteronesecond(1.1f));
+//            }
+//            else {
+//                sendmessage("<color=red>nothing captured. please wait at least one second. that's because the " +
+//                            "images are named with a timestamp messured in seconds. multiple captures " +
+//                            "within the same second would lead to overwritten images and faulty labels.</color>");
+//            }
+//        }
+
+//        if(input.getkeydown(keycode.h)) uicanvas.enabled = !uicanvas.enabled;
+
+//        if(input.getkeydown(keycode.p)) {
+//            allowemptycaptures = !allowemptycaptures;
+//            if(allowemptycaptures) sendmessage("capturing empty images is toggled <color=green>on</color>");
+//            else sendmessage("capturing empty images is toggled <color=red>off</color>.");
+//        }
+
+//        // extra mechanism to prevent overwriting images
+//        ienumerator allowcapturingafteronesecond(float n) {
+//            yield return new waitforsecondsrealtime(n);
+//            allowcapturing = true;
+//        }
+
+//        ienumerator captureobjects() {
+
+//            // get time stamp as file name
+//            system.datetime time = system.datetime.now;
+//            string timestmp = time.year + "-"
+//                            + time.month + "-"
+//                            + time.day + "_"
+//                            + time.hour + "h"
+//                            + time.minute + "min"
+//                            + time.second + "sec";
+
+//            int randomnumber = unityengine.random.range(0, 10000);
+
+//            if(!file.exists(trainingdatapath + timestmp + randomnumber + ".png")) {
+
+//                sendmessage("*snap*");
+
+//                // wait till the last possible moment before screen rendering to hide ui
+//                bool canvaswasenabled = uicanvas.enabled;
+//                yield return null;
+//                uicanvas.enabled = false;
+
+//                // wait for screen rendering to complete
+//                yield return new waitforendofframe();
+//                if(canvaswasenabled) uicanvas.enabled = true;
+
+//                // take screenshot
+//                texture2d screenshot = screencapture.capturescreenshotastexture();
+//                byte[] screenshotaspng = screenshot.encodetopng();
+
+//                bool allsizessufficient = true;
+//                list<boxdata> boxdatalist = new list<boxdata>();
+//                list<positiveelement> positiveelements = new list<positiveelement>();
+//                foreach(gameobject detectable in detectables) {
+
+//                    renderer renderer = detectable.getcomponent<renderer>();
+
+//                    // get boundary box
+//                    if(renderer.isvisible) {
+
+//                        // get an array of all vertices of the object
+//                        mesh mesh = detectable.getcomponent<meshfilter>().mesh;
+//                        vector3[] vertices = mesh.vertices;
+
+//                        // since vertices are given relative to their gameobject, we need to convert them into worldspace
+//                        for(int i = 0; i < vertices.length; i++) {
+
+//                            vertices[i] = detectable.transform.transformpoint(vertices[i]);
+
+//                        }
+
+//                        float left = screen.width + 1f;
+//                        float right = -1f;
+//                        float top = -1f;
+//                        float bottom = screen.height + 1f;
+
+//                        // with camera.worldtoscreenpoint(vector3 worldpoint) search for the top, bottom, most left and most right point
+//                        bool objectinsight = false;
+//                        foreach(vector3 vertex in vertices) {
+
+//                            // check if vertex is not behind the camera
+//                            if(vector3.dot(playercamera.transform.forward, vertex - playercamera.transform.position) >= 0f) {
+
+//                                // check if corresponding screen point is on screen and if it is a newly found border point candidate
+//                                vector3 screenpoint = playercamera.worldtoscreenpoint(vertex);
+//                                if(new rect(0, 0, screen.width, screen.height).contains(screenpoint)) {
+
+//                                    // check if vertex is obscured by another object
+//                                    bool vertexisobscured = false;
+//                                    raycasthit hitinfo;
+//                                    if(physics.raycast(playercamera.transform.position,
+//                                                        vertex - playercamera.transform.position,
+//                                                        out hitinfo,
+//                                                        (vertex - playercamera.transform.position).magnitude - 0.01f)) {
+
+//                                        if(hitinfo.collider.gameobject != detectable) {
+
+//                                            vertexisobscured = true;
+
+//                                        }
+//                                        else {
+
+//                                            objectinsight = true;
+
+//                                        }
+//                                    }
+
+//                                    if(!vertexisobscured) {
+
+//                                        if(screenpoint.x < left) left = screenpoint.x;
+//                                        if(screenpoint.x > right) right = screenpoint.x;
+//                                        if(screenpoint.y < bottom) bottom = screenpoint.y;
+//                                        if(screenpoint.y > top) top = screenpoint.y;
+
+//                                    }
+//                                }
+//                            }
+//                        }
+
+//                        // determine object class
+//                        int classid = -1;
+//                        if(detectable.name.startswith("cube")) classid = 0;
+//                        else if(detectable.name.startswith("ball")) classid = 1;
+//                        // else if(detectable.name.startswith("tetraeder")) classid = 2; // add new detectable class
+//                        else {
+//                            debug.logerror("couldn't infer object class");
+//                            throw new system.exception("detected an object whose id cannot be infered.");
+//                        }
+
+//                        // add object to data
+//                        if(objectinsight) {
+
+//                            // check if object is at least 12 pixels wide and high
+//                            bool toosmall = false;
+//                            float width = right - left;
+//                            float height = top - bottom;
+//                            bool wasdetected = left != screen.width + 1f && right != -1f && top != -1f && bottom != screen.height + 1f;
+//                            if((mathf.roundtoint(width) < minimaldetectionsize || mathf.roundtoint(height) < minimaldetectionsize) && wasdetected)
+//                                toosmall = true;
+
+//                            if(!toosmall) {
+
+//                                // represent detected objects in the info box
+//                                string name = detectable.name;
+//                                if(detectable.name.contains("cube")) name = "<color=red>" + detectable.name + "</color>";
+//                                else if(detectable.name.contains("ball")) name = "<color=cyan>" + detectable.name + "</color>";
+//                                sendmessage(name + "(id: " + detectable.getinstanceid() + ") snapped");
+
+//                                // draw the lines
+//                                for(int x = (int)left; x <= (int)right; x++) {
+//                                    screenshot.setpixel(x, (int)bottom, color.red);
+//                                    screenshot.setpixel(x, (int)top, color.red);
+//                                }
+//                                for(int y = (int)bottom; y <= (int)top; y++) {
+//                                    screenshot.setpixel((int)left, y, color.red);
+//                                    screenshot.setpixel((int)right, y, color.red);
+//                                }
+
+//                                // gather corresponding data
+
+//                                // for yolo
+//                                boxdata boxdata = new boxdata(classid,
+//                                                                mathf.roundtoint(left),
+//                                                                mathf.roundtoint(screen.height - top),
+//                                                                width,
+//                                                                height);
+//                                boxdatalist.add(boxdata);
+
+//                                // add to positives
+//                                int cascadeleft = mathf.roundtoint(left) - paddingperside;
+//                                if(cascadeleft < 0) cascadeleft = 0;
+//                                int cascadetop = mathf.roundtoint(screen.height - top) - paddingperside;
+//                                if(cascadetop < 0) cascadetop = 0;
+//                                int cascadewidth = mathf.roundtoint(width) + 2 * paddingperside;
+//                                if(cascadeleft + cascadewidth > screen.width) cascadewidth = screen.width - cascadeleft;
+//                                int cascadeheight = mathf.roundtoint(height) + 2 * paddingperside;
+//                                if(cascadetop + cascadeheight > screen.height) cascadeheight = screen.height - cascadetop;
+
+//                                positiveelements.add(new positiveelement(classid,
+//                                                                            "positives\\" + timestmp + randomnumber + ".png",
+//                                                                            new bbox(cascadeleft, cascadetop, cascadewidth, cascadeheight)));
+
+//                            }
+//                            else allsizessufficient = false;
+//                        }
+//                    }
+//                }
+
+//                if(allsizessufficient) {
+
+//                    // add cascade classifier data and for every class,
+//                    // check if there is a positive element for that class.
+//                    // if no: add image as negative element for that class.
+//                    list<negativeelement> negativeelements = new list<negativeelement>();
+//                    dictionary<int, bool> classfound = new dictionary<int, bool>();
+//                    classfound.add(0, false);
+//                    classfound.add(1, false);
+//                    foreach(positiveelement poselem in positiveelements) {
+
+//                        if(poselem.classid == 0) {
+
+//                            classfound[0] = true;
+//                            rundata.cubes.positives.add(new positivesdata(poselem.path, poselem.bbox));
+
+//                        }
+//                        else if(poselem.classid == 1) {
+
+//                            classfound[1] = true;
+//                            rundata.balls.positives.add(new positivesdata(poselem.path, poselem.bbox));
+
+//                        }
+//                        /*else if(poselem.classid == 2) { // add new detectable class
+
+//                            classfound[2] = true;
+//                            rundata.tetraeders.positives.add(new positivesdata(poselem.path, poselem.bbox));
+
+//                        }*/
+//                        else {
+
+//                            debug.logerror("the script added a non-existent detectable class to the \"positiveelements\" variable. this error is fatal. please inform dennis about this.");
+//                            throw new system.exception("the script added a non-existent detectable class to the \"positiveelements\" variable. this error is fatal. please inform dennis about this.");
+
+//                        }
+//                    }
+
+//                    // add negative elements
+//                    foreach(int classid in classfound.keys)
+//                        if(!classfound[classid])
+//                            if(classid == 0)
+//                                rundata.cubes.negatives.add(new negativesdata("negatives\\" + timestmp + randomnumber + ".png"));
+//                            else if(classid == 1)
+//                                rundata.balls.negatives.add(new negativesdata("negatives\\" + timestmp + randomnumber + ".png"));
+//                            /*else if(classid == 2) // add new detectable class
+//                                rundata.tetraeders.negatives.add(new negativesdata("negatives\\" + timestmp + randomnumber + ".png"));*/
+//                            else {
+
+//                                debug.logerror("the script had a non-existent detectable class in the \"classfound.key\" field. this error is fatal. please inform dennis about this.");
+//                                throw new system.exception("the script had a non-existent detectable class in the \"classfound.key\" field. this error is fatal. please inform dennis about this.");
+
+//                            }
+
+//                    // if at least one object was detected
+//                    if(allowemptycaptures || boxdatalist.count > 0) {
+
+//                        // save unlabeled image
+//                        if(!directory.exists(yolodatapath)) {
+
+//                            directory.createdirectory(yolodatapath);
+
+//                        }
+//                        file.writeallbytes(yolodatapath + timestmp + randomnumber + ".png", screenshotaspng);
+
+//                        // save labeled image
+//                        if(configtransporter.savelabeledimages) {
+//                            screenshotaspng = screenshot.encodetopng();
+//                            file.writeallbytes(yolodatapath + timestmp + randomnumber + "_labeled.png", screenshotaspng);
+//                        }
+
+//                        // save json data
+//                        /* string jsonstring = jsonutility.tojson(new boxdatalist(boxdatalist), true);
+//                        file.writealltext(path + timestmp + ".json", jsonstring);*/
+
+//                        // save txt file as yolo label
+//                        foreach(boxdata boxdata in boxdatalist) {
+
+//                            using(streamwriter sw = file.appendtext(yolodatapath + timestmp + randomnumber + ".txt")) {
+
+//                                sw.writeline(boxdata.id + " " +
+//                                                (float)(boxdata.x + boxdata.w / 2) / screen.width + " " +
+//                                                (float)(boxdata.y + boxdata.h / 2) / screen.height + " " +
+//                                                (float)boxdata.w / screen.width + " " +
+//                                                (float)boxdata.h / screen.height);
+
+//                            }
+//                        }
+//                        if(boxdatalist.count == 0) using(streamwriter sw = file.appendtext(yolodatapath + timestmp + randomnumber + ".txt")) sw.write("");
+
+//                        // overwrite json for cascade classifier
+//                        string jsonstring = jsonutility.tojson(cascadeclassifierdata, true);
+//                        file.writealltext(cascadeclassifierdatajsonpath, jsonstring);
+
+//                    }
+//                    // no object detected and capturing labels without detections is off
+//                    else sendmessage("<color=red>nothing captured. no object in sight. if you want to capture empty images too, please press the <color=blue>p</color> button</color>");
+
+//                }
+//                else sendmessage("<color=red>nothing captured. there is at least one object, whose width or height " +
+//                                    "in pixels is smaller than " + minimaldetectionsize + ". please ensure the sizes of all visible detectables is sufficient.</color>");
+
+//            }
+//            // file already exits => player didn't wait at least
+//            // one seconds and randomly generated number was the same
+//            else sendmessage("<color=red>nothing captured. please wait at least one second. that's because the " +
+//                              "screenshots are named with a timestamp messured in seconds. multiple screenshots " +
+//                              "within the same second would lead to overwritten images and faulty labels.</color>");
+//        }
+//    }
+
+//    public void sendmessage(string text) {
+//        if(messagelist.count >= maxmessages) {
+//            destroy(messagelist[0].textobject.gameobject);
+//            messagelist.remove(messagelist[0]);
+//        }
+
+//        message newmessage = new message();
+//        newmessage.text = text;
+//        gameobject newtext = instantiate(textobject, contentobject.transform);
+//        newmessage.textobject = newtext.getcomponent<text>();
+//        newmessage.textobject.text = newmessage.text;
+//        messagelist.add(newmessage);
+//    }
+//}
+
+//[system.serializable]
+//public class message {
+//    public string text;
+//    public text textobject;
+//}
+
+///*[system.serializable]
+//class boxdatalist {
+//    public list<boxdata> data;
+
+//    public boxdatalist(list<boxdata> data) {
+//        this.data = data;
+//    }
+//}
+
+//[system.serializable]
+//class boxdata {
+//    public int id;
+//    public float x;
+//    public float y;
+//    public float w;
+//    public float h;
+
+//    public boxdata(int objid, float posx, float posy, float width, float height) {
+//        this.id = objid;
+//        this.x = posx;
+//        this.y = posy;
+//        this.w = width;
+//        this.h = height;
+//    }
+//}
+
+//// neccessary classes for cascading classifier data
+//[system.serializable]
+//class cascadeclassifierdata {
+//    public list<rundata> rundata;
+
+//    public cascadeclassifierdata() {
+//        this.rundata = new list<rundata>();
+//    }
+//}
+
+//[system.serializable]
+//class rundata {
+//    public string runid;
+//    public string mode;
+//    public string version;
+//    public detectabledata cubes;
+//    public detectabledata balls;
+//    //public list<detectabledata> tetraeders;
+
+//    public rundata(string runid, string mode, string version) {
+//        this.runid = runid;
+//        this.mode = mode;
+//        this.version = version;
+//        this.cubes = new detectabledata(); // for cubes
+//        this.balls = new detectabledata(); // for balls
+//        //this.tetraeders.add(new detectabledata()); // for tetraeders
+//    }
+//}
+
+//[system.serializable]
+//class detectabledata {
+//    public list<positivesdata> positives;
+//    public list<negativesdata> negatives;
+
+//    public detectabledata() {
+//        this.positives = new list<positivesdata>();
+//        this.negatives = new list<negativesdata>();
+//    }
+//}
+
+//[system.serializable]
+//class positivesdata {
+//    public string path;
+//    public bbox boxentry;
+
+//    public positivesdata(string path, bbox bbox) {
+//        this.path = path;
+//        this.boxentry = bbox;
+//    }
+//}
+
+//[system.serializable]
+//class bbox {
+//    public int x;
+//    public int y;
+//    public int w;
+//    public int h;
+
+//    public bbox(int x, int y, int w, int h) {
+//        this.x = x;
+//        this.y = y;
+//        this.w = w;
+//        this.h = h;
+//    }
+//}
+
+//class positiveelement {
+//    public int classid;
+//    public string path;
+//    public bbox bbox;
+
+//    public positiveelement(int classid, string path, bbox bbox) {
+//        this.classid = classid;
+//        this.path = path;
+//        this.bbox = bbox;
+//    }
+//}
+
+//class negativeelement {
+//    public int classid;
+//    public string path;
+
+//    public negativeelement(int classid, string path) {
+//        this.classid = classid;
+//        this.path = path;
+//    }
+//}
+
+//[system.serializable]
+//class negativesdata {
+//    public string path;
+
+//    public negativesdata(string path) {
+//        this.path = path;
+//    }
+//}*/
