@@ -67,5 +67,5 @@ training_data
 # Builds are too big, only the most current may be uploaded
 Builds/Windows_x86_64/*
 Builds/Linux_x86_64/*
-!Builds/Windows_x86_64/v1.8/
-!Builds/Linux_x86_64/v1.8/
+!Builds/Windows_x86_64/v1.9/
+!Builds/Linux_x86_64/v1.9/

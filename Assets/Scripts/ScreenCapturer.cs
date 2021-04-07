@@ -18,6 +18,7 @@ namespace ScreenCapturerUtils {
         ConfigTransporter configTransporter;
         string mode;
         bool saveLabeledImages;
+        bool saveEmptyImages;
         List<GameObject> detectables = null;
         [SerializeField] [Range(3, 15)] int maxMessages = 10;
         List<Message> messageList = new List<Message>();
@@ -56,20 +57,23 @@ namespace ScreenCapturerUtils {
                 if(configTransporter != null) {
                     mode = configTransporter.currentMode.ModeName;
                     saveLabeledImages = configTransporter.saveLabeledImages;
+                    saveEmptyImages = configTransporter.saveEmptyImages;
                 }
                 else {
                     mode = "STANDARD";
                     saveLabeledImages = true;
+                    saveEmptyImages = false;
                 }
             }
             else {
                 mode = "STANDARD";
                 saveLabeledImages = true;
+                saveEmptyImages = false;
             }
 
             Cursor.visible = false;
             allowCapturing = true;
-            allowEmptyCaptures = true;
+            allowEmptyCaptures = saveEmptyImages;
 
             // define certain paths and folder name of this mode
             if(SystemInfo.operatingSystem.StartsWith("Windows")) {
@@ -110,7 +114,6 @@ namespace ScreenCapturerUtils {
             sendMessage("Zoom: Scroll Mouse Wheel");
             sendMessage("Hide Info Box: H");
             sendMessage("Respawn Detectables: 1");
-            sendMessage("Toggle allow empty captures: P (default: <color=green>ON</color>)");
             sendMessage("Close Application: ESC");
             sendMessage("<color=red>Wait at least one second between captures.</color>");
             sendMessage("Training data are saved in \"" + trainingDir + "\".");
@@ -407,7 +410,7 @@ namespace ScreenCapturerUtils {
                         File.WriteAllText(trainingDir + modeDir + cascadeClassifierJSONPath, jsonString);
                     }
                     // no object detected and capturing labels without detections is off
-                    else sendMessage("<color=red>Nothing captured. No object in sight. If you want to capture empty images too, please press the <color=blue>P</color> button</color>");
+                    else sendMessage("<color=red>Nothing captured. No object in sight.</color>");
                 }
                 else sendMessage("<color=red>Nothing captured. There is at least one object, whose width or height " +
                                     "in pixels is smaller than " + minimalSize + ". Please ensure the sizes of all visible detectables is sufficient.</color>");

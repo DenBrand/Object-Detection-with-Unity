@@ -13,6 +13,7 @@ public class ConfigTransporter : MonoBehaviour
     public List<Mode> modes;
     public Mode currentMode { get; set; }
     public bool saveLabeledImages { get; set; }
+    public bool saveEmptyImages { get; set; }
     private int currentModeIdx;
 
     private void Awake() {
@@ -24,6 +25,7 @@ public class ConfigTransporter : MonoBehaviour
 
     private void Start() {
         saveLabeledImages = true;
+        saveEmptyImages = false;
 
         if(modes.Count == 0) {
             Debug.LogError("There are no modes given in the ConfigTransporter.");
