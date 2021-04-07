@@ -230,7 +230,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -117.26, y: -109}
+  m_AnchoredPosition: {x: -117.26, y: -132}
   m_SizeDelta: {x: 83.48987, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &59950670
@@ -280,7 +280,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 182987800}
-        m_MethodName: set_saveLabeledImages
+        m_MethodName: set_saveEmptyImages
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -290,7 +290,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 1
         m_CallState: 2
-  m_IsOn: 1
+  m_IsOn: 0
 --- !u!1 &66112151
 GameObject:
   m_ObjectHideFlags: 0
